@@ -1,20 +1,37 @@
-﻿namespace PracticeMVC.Controllers
-{
+﻿using Microsoft.AspNetCore.Mvc;
+using PracticeMVC.Models;
 
-    using Microsoft.AspNetCore.Mvc;
+
+namespace PracticeMVC.Controllers
+{
+    
     public class LoginController : Controller
     {
-        private readonly ILogger<LoginController> _logger;
+
     
+        private readonly ILogger<LoginController> _logger;
 
         public LoginController(ILogger<LoginController> logger)
         {
             _logger = logger;
         }
-
-        public IActionResult Index()
+        [HttpGet]
+        [HttpPost]
+        public IActionResult Index(string username, string password, bool rememberMe)
         {
-            return View();
+            
+            var verifier = new LoginVerification();
+            if(verifier.PasswordChecker(username, password))
+            {
+                HttpContext.Session.SetString("username", username);
+                return RedirectToAction("Index", "Home");
+
+            }
+            else
+            {
+                ViewBag.Error = "Invalid username or password";
+                return View();
+            }
         }
     }
 }
