@@ -21,4 +21,10 @@
     <Content Remove="Views\Home\Help.cshtml" />
   </ItemGroup>
 
+  <ItemGroup>
+    <PackageReference Include="Couchbase.Extensions.DependencyInjection" Version="3.7.2" />
+    <PackageReference Include="CouchbaseNetClient" Version="3.7.2" />
+    <PackageReference Include="Npgsql" Version="9.0.3" />
+  </ItemGroup>
+
 </Project>
