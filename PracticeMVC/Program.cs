@@ -1,10 +1,13 @@
 
+using PracticeMVC.Services;
+
 var builder = WebApplication.CreateBuilder(args);
 
 // Add services to the container.
 builder.Services.AddControllersWithViews();
 builder.Services.AddSession();
 builder.Services.AddSingleton<PracticeMVC.Services.DatabaseService>();
+builder.Services.AddScoped<UserRepository>();
 
 var app = builder.Build();
 

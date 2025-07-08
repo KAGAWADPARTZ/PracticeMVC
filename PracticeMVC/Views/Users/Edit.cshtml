@@ -1,0 +1,24 @@
+﻿@model PracticeMVC.Models.Users
+
+<h2>Create User</h2>
+
+<form method="post">
+    <div class="form-group">
+        <label>Username</label>
+        <input asp-for="Username" class="form-control" />
+    </div>
+    <div class="form-group">
+        <label>Password</label>
+        <input asp-for="Password" type="password" class="form-control" />
+    </div>
+    <div class="form-group">
+        <label>Contact Number</label>
+        <input asp-for="ContactNumber" class="form-control" />
+    </div>
+    <div class="form-group">
+        <label>Address</label>
+        <input asp-for="Address" class="form-control" />
+    </div>
+    <button type="submit" class="btn btn-success">Save</button>
+    <a href="/Users" class="btn btn-secondary">Cancel</a>
+</form>

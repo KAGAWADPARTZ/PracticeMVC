@@ -33,5 +33,11 @@ namespace PracticeMVC.Controllers
                 return View();
             }
         }
+        private IActionResult Register()
+        {
+            // Registration logic can be implemented here
+
+            return View();
+        }
     }
 }
