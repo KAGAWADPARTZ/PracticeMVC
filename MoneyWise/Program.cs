@@ -1,13 +1,13 @@
-
-using PracticeMVC.Services;
+using MoneyWise.Services;
 
 var builder = WebApplication.CreateBuilder(args);
 
 // Add services to the container.
 builder.Services.AddControllersWithViews();
 builder.Services.AddSession();
-builder.Services.AddSingleton<PracticeMVC.Services.DatabaseService>();
+builder.Services.AddSingleton<MoneyWise.Services.DatabaseService>();
 builder.Services.AddScoped<UserRepository>();
+builder.Services.AddGoogleAuthentication(builder.Configuration);
 
 var app = builder.Build();
 
@@ -23,9 +23,8 @@ app.UseHttpsRedirection();
 app.UseStaticFiles();
 app.UseSession();
 app.UseRouting();
-
+app.UseAuthentication();
 app.UseAuthorization();
-
 app.MapControllerRoute(
     name: "default",
     pattern: "{controller=Login}/{action=Index}/{id?}");

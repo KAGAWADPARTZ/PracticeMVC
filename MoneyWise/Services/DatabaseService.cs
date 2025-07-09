@@ -2,7 +2,7 @@
 using Microsoft.Extensions.Configuration;
 using Npgsql;
 
-namespace PracticeMVC.Services
+namespace MoneyWise.Services
 {
     public class DatabaseService(IConfiguration configuration)
     {

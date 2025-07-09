@@ -1,6 +1,6 @@
 ﻿using Microsoft.AspNetCore.Mvc;
-using PracticeMVC.Models;
-using PracticeMVC.Services;
+using MoneyWise.Models;
+using MoneyWise.Services;
 
 namespace PracticeMVC.Controllers
 {

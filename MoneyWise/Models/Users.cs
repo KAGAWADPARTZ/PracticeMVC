@@ -1,4 +1,4 @@
-﻿namespace PracticeMVC.Models
+﻿namespace MoneyWise.Models
 {
     public class Users
     {

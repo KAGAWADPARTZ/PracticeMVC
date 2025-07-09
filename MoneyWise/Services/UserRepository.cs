@@ -1,8 +1,8 @@
 ﻿using Dapper;
-using PracticeMVC.Models;
+using MoneyWise.Models;
 using System.Data;
 
-namespace PracticeMVC.Services
+namespace MoneyWise.Services
 {
     public class UserRepository
     {
@@ -14,7 +14,7 @@ namespace PracticeMVC.Services
         }
         public List<Users> IsUserRegistered(string username, string password)
         {
-            string msg = "You are already register ";
+            //string msg = "You are already register ";
             using var conn = _db.CreateConnection();
             var sql = @"SELECT  ""Username"", ""Password""
                         FROM ""Users"" 

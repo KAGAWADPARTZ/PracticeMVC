@@ -1,8 +1,8 @@
 using System.Diagnostics;
 using Microsoft.AspNetCore.Mvc;
-using PracticeMVC.Models;
+using MoneyWise.Models;
 
-namespace PracticeMVC.Controllers
+namespace MoneyWise.Controllers
 {
     public class HomeController : Controller
     {
