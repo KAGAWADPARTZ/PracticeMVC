@@ -1,40 +1,47 @@
 ﻿@using Microsoft.AspNetCore.Http
 @{
-    var username = Context.Session.GetString("username");
+    // var username = Context.Session.GetString("name");
      Layout = null;
      ViewData["Title"] = "Login";
 }
-    <title>@ViewData["Title"] - MoneyWise</title>
-    <link rel="stylesheet" href="~/lib/bootstrap/dist/css/bootstrap.min.css" />
-    <link rel="stylesheet" href="~/css/site.css" asp-append-version="true" />
-    <link rel="stylesheet" href="~/MoneyWise.styles.css" asp-append-version="true" />
+    <!DOCTYPE html>
+    <html lang="en">
+        <head>
+            <meta charset="utf-8" />
+            <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+            <title>@ViewData["Title"] - MoneyWise</title>
+            <link rel="stylesheet" href="~/lib/bootstrap/dist/css/bootstrap.min.css" />
+            <link rel="stylesheet" href="~/css/site.css" asp-append-version="true" />
+            <link rel="stylesheet" href="~/MoneyWise.styles.css" asp-append-version="true" />  
+        </head>
+    <body>
+        <div class="container-fluid min-vh-100 d-flex justify-content-center align-items-center">
+            <form asp-controller="Login" asp-action="Index" method="post" class="d-flex flex-column gap-4 align-items-center border border-primary rounded-3 p-5 bg-light" style="min-width: 400px; max-width: 500px; width: 100%;">
+                <div class="w-100">
+                    <label class="visually-hidden" for="inlineFormInputGroupUsername">Username</label>
+                    <div class="input-group input-group-lg">
+                        <input type="text" class="form-control fs-4" id="Username" name="username" placeholder="Username" required>
+                    </div> 
+                </div>
 
-<div class="container-fluid min-vh-100 d-flex justify-content-center align-items-center">
-    <form asp-controller="Login" asp-action="Index" method="post" class="d-flex flex-column gap-4 align-items-center border border-primary rounded-3 p-5 bg-light" style="min-width: 400px; max-width: 500px; width: 100%;">
-        <div class="w-100">
-            <label class="visually-hidden" for="inlineFormInputGroupUsername">Username</label>
-            <div class="input-group input-group-lg">
-                <input type="text" class="form-control fs-4" id="Username" name="username" placeholder="Username" required>
-            </div> 
-        </div>
+                <div class="w-100">
+                    <label class="visually-hidden" for="inlineFormInputGroupPassword">Password</label>
+                    <div class="input-group input-group-lg">
+                        <input type="password" class="form-control fs-4" id="assword" name="password" placeholder="Password" required>
+                    </div> 
+                </div>
 
-        <div class="w-100">
-            <label class="visually-hidden" for="inlineFormInputGroupPassword">Password</label>
-            <div class="input-group input-group-lg">
-                <input type="password" class="form-control fs-4" id="assword" name="password" placeholder="Password" required>
-            </div> 
+                <div class="form-check w-100 fs-4">
+                    <input class="form-check-input" type="checkbox" id="inlineFormCheck name="rememberMe">
+                    <label class="form-check-label" for="inlineFormCheck">
+                        Remember me
+                    </label>
+                </div>
+                <button type="submit" class="btn btn-primary w-100 btn-lg fs-4">Submit</button>
+                <div class="mt-3 w-100 text-center">
+                   <a href="/Login/GoogleLogin" class="btn btn-primary w-100 btn-lg fs-4">Login with Google</a>
+                </div>
+            </form>     
         </div>
-
-        <div class="form-check w-100 fs-4">
-            <input class="form-check-input" type="checkbox" id="inlineFormCheck name="rememberMe">
-            <label class="form-check-label" for="inlineFormCheck">
-                Remember me
-            </label>
-        </div>
-        <button type="submit" class="btn btn-primary w-100 btn-lg fs-4">Submit</button>
-    </form>
-    <div class="mt-3 w-100 text-center">
-       <a href="/Login/GoogleLogin" class="btn btn-primary w-100 btn-lg fs-4">Login with Google</a>
-    </div>
-</div>
-<%Session("username").
+    </body>
+   </html>

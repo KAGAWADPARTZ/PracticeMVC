@@ -1,8 +1,7 @@
 ﻿@using Microsoft.AspNetCore.Http
 @{
-    var username = Context.Session.GetString("username");
+    var username = Context.Session.GetString("name");
 }
-
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -28,13 +27,13 @@
                     }
                      <ul class="navbar-nav me-auto mb-2 mb-lg-0">
                         <li class="nav-item">
-                          <a class="nav-link active text-black" aria-current="page" href="#">Home</a>
+                          <a class="nav-link active text-black" aria-current="page" asp-action = "/Index" >Home</a>
                         </li>
                         <li class="nav-item">
                           <a class="nav-link text-black" href="#">Link</a>
                         </li>
                         <li class="nav-item">
-                          <a class="nav-link text-black" asp-action = "" aria-current = "page">Disabled</a>
+                          <a class="nav-link text-black" asp-controller="Users" asp-action="Index">Users</a>
                         </li>
                       </ul>
                       <form class="d-flex" role="search">

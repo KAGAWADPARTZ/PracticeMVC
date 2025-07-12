@@ -1,7 +1,7 @@
 ﻿@model List<MoneyWise.Models.Users>
 
 @{
-    ViewBag.Title = "User List";
+    ViewBag.Title = "Users";
 }
 
 <h2>User List</h2>
@@ -10,7 +10,6 @@
     <tr>
         <th>UserID</th>
         <th>Username</th>
-        <th>Password</th>
         <th>Contact</th>
         <th>Address</th>
         <th>Actions</th>
@@ -19,8 +18,7 @@
     {
         <tr>
             <td>@user.UserID</td>
-            <td>@user.Username</td>
-            <td>@user.Password</td>
+            <td>@user.Username</td> 
             <td>@user.ContactNumber</td>
             <td>@user.Address</td>
             <td>
