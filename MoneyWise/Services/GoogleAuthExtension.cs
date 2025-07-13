@@ -32,14 +32,12 @@ namespace MoneyWise.Services
 
                     options.Scope.Add("email");
                     options.Scope.Add("profile");
-
+                    
                     options.SaveTokens = true;
 
                     options.ClaimActions.MapJsonKey(ClaimTypes.NameIdentifier, "id");
                     options.ClaimActions.MapJsonKey(ClaimTypes.Name, "name");
                     options.ClaimActions.MapJsonKey(ClaimTypes.Email, "email");
-                    options.ClaimActions.MapJsonKey(ClaimTypes.StreetAddress, "address");
-                    options.ClaimActions.MapJsonKey(ClaimTypes.DateOfBirth, "dateofbirth");
 
                     options.Events.OnCreatingTicket = async context =>
                     {

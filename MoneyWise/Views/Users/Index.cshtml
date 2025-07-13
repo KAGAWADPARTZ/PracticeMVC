@@ -10,17 +10,13 @@
     <tr>
         <th>UserID</th>
         <th>Username</th>
-        <th>Contact</th>
-        <th>Address</th>
         <th>Actions</th>
     </tr>
     @foreach (var user in Model)
     {
         <tr>
             <td>@user.UserID</td>
-            <td>@user.Username</td> 
-            <td>@user.ContactNumber</td>
-            <td>@user.Address</td>
+            <td>@user.Username</td>           
             <td>
                 <a href="/Users/Edit/@user.UserID">Edit</a> |
                 <a href="/Users/Delete/@user.UserID" onclick="return confirm('Delete user?');">Delete</a>

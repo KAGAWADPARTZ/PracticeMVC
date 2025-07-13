@@ -16,23 +16,22 @@ namespace MoneyWise.Services
         public List<Users> GetAllUsers()
         {
             using var conn = _db.CreateConnection();
-            var sql = @"SELECT ""UserID"", ""Username"", ""Email"", ""created_at"", ""ContactNumber"", ""Address"" FROM ""Users""";
+            var sql = @"SELECT ""UserID"", ""Username"", ""Email"", ""created_at"" FROM ""Users""";
             return conn.Query<Users>(sql).ToList();
         }
 
         public Users? GetUserById(int id)
         {
             using var conn = _db.CreateConnection();
-            var sql = @"SELECT ""UserID"", ""Username"", ""Email"", ""created_at"", ""ContactNumber"", ""Address"" 
-                        FROM ""Users"" WHERE ""UserID"" = @id";
+            var sql = @"SELECT ""UserID"", ""Username"", ""Email"", ""created_at"" FROM ""Users"" WHERE ""UserID"" = @id";
             return conn.QuerySingleOrDefault<Users>(sql, new { id });
         }
 
         public void CreateUser(Users user)
         {
             using var conn = _db.CreateConnection();
-            var sql = @"INSERT INTO ""Users"" (""Username"", ""Email"", ""ContactNumber"", ""Address"", ""created_at"") 
-                        VALUES (@Username, @Email, @ContactNumber, @Address, NOW())";
+            var sql = @"INSERT INTO ""Users"" (""Username"", ""Email"", ""created_at"") 
+                    VALUES (@Username, @Email, NOW())";
             conn.Execute(sql, user);
         }
 
@@ -40,11 +39,9 @@ namespace MoneyWise.Services
         {
             using var conn = _db.CreateConnection();
             var sql = @"UPDATE ""Users"" 
-                        SET ""Username"" = @Username, 
-                            ""Password"" = @Email, 
-                            ""ContactNumber"" = @ContactNumber, 
-                            ""Address"" = @Address 
-                        WHERE ""UserID"" = @UserID";
+                    SET ""Username"" = @Username, 
+                        ""Email"" = @Email
+                    WHERE ""UserID"" = @UserID";
             conn.Execute(sql, user);
         }
 
