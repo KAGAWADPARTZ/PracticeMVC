@@ -26,17 +26,12 @@ namespace MoneyWise.Services
 
             var email = authresult.Principal.FindFirst(ClaimTypes.Email)?.Value;
             var name = authresult.Principal.FindFirst(ClaimTypes.Name)?.Value;
-            Console.WriteLine("Email from Google: " + email);
-            Console.WriteLine("Name from Google: " + name);
-
 
             var existingUser = _userRepository.GetAllUsers().FirstOrDefault(u => u.Email == email);
 
-            Console.WriteLine("🟢 Google login callback triggered");
-
             if (existingUser == null && email != null)
             {
-                Console.WriteLine("❌ No email found");
+              
                 try
                 {
                     var user = new Users

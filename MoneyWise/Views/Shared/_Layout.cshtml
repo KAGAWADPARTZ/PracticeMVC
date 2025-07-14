@@ -1,89 +1,63 @@
-﻿@using Microsoft.AspNetCore.Http
-@{
-    var username = Context.Session.GetString("name");
-}
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>@ViewData["Title"] - MoneyWise</title>
-    <link rel="stylesheet" href="~/lib/bootstrap/dist/css/bootstrap.min.css" />
-    <link rel="stylesheet" href="~/css/site.css" asp-append-version="true" />
-    <link rel="stylesheet" href="~/MoneyWise.styles.css" asp-append-version="true" />
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" integrity="sha512-Xx..." crossorigin="anonymous" referrerpolicy="no-referrer" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+    <!-- SB Admin 2 CSS -->
+    <link href="~/vendor/fontawesome-free/css/all.min.css" rel="stylesheet" />
+    <link href="~/css/sb-admin-2.min.css" rel="stylesheet" />
+
+    @RenderSection("Styles", required: false)
 </head>
-<body>
-    <header class="position-relative">
-        <nav class="navbar navbar-expand-lg px-3 bg-tertiary" data-bs-theme="light">
-            <div class="container-fluid d-flex justify-content-between align-items-center">
+<body id="page-top">
 
-                <!-- Left: App Name + Search -->
-                <div class="d-flex align-items-center">
-                    <a class="navbar-brand fw-bold me-3" asp-action="Index">MoneyWise</a>
-                    <form class="d-none d-lg-flex me-2" role="search">
-                        <input class="form-control me-2" type="search" placeholder="Search" />
-                        <button class="btn btn-outline-primary" type="submit">Search</button>
-                    </form>
+    <!-- Page Wrapper -->
+    <div id="wrapper">
+
+        <!-- Sidebar -->
+        @Html.Partial("_Sidebar")
+        <!-- End of Sidebar -->
+
+        <!-- Content Wrapper -->
+        <div id="content-wrapper" class="d-flex flex-column">
+
+            <!-- Main Content -->
+            <div id="content">
+                <!-- Topbar -->
+                @Html.Partial("_Topbar")
+                <!-- End of Topbar -->
+
+                <!-- Page Content -->
+                <div class="container-fluid">
+                    @RenderBody()
                 </div>
 
-                <!-- Center: Nav Links -->
-                <div class="d-flex justify-content-center flex-grow-1">
-                    <ul class="navbar-nav mb-2 mb-lg-0">
-                        <li class="nav-item">
-                            <a class="nav-link" asp-action="Index">Home</a>
-                        </li>
-                        <li class="nav-item">
-                            <a class="nav-link" asp-controller="Savings" asp-action="Index">Savings</a>
-                        </li>
-                        <li class="nav-item">
-                            <a class="nav-link" asp-controller="Users" asp-action="Index">Users</a>
-                        </li>
-                    </ul>
-                </div>
-
-                <!-- Right: Username + Hamburger -->
-                <div class="d-flex align-items-center position-relative">
-                    @if (!string.IsNullOrEmpty(username))
-                    {
-                        <span class="navbar-text me-2">@username</span>
-                    }
-
-                    <!-- Hamburger Toggle -->
-                    <button class="btn btn-outline-primary btn-bg-primary-hover" type="button" data-bs-toggle="collapse"
-                        data-bs-target="#hamburgerMenu" aria-expanded="false" aria-controls="hamburgerMenu">
-                        <i class="fas fa-bars"></i>
-                    </button>
-                </div>
             </div>
-        </nav>
+            <!-- End of Main Content -->
 
-    <!-- Collapsible floating menu (NOT inside nav) -->
-        <div id="hamburgerMenu" class="collapse position-absolute end-0 mt-2 me-3 z-3" style="min-width: 100px;">
-            <div class="bg-white border rounded shadow-sm p-2">
-                <a class="btn btn-link w-100 text-start" href="#">Profile</a>
-                <a class="btn btn-link w-100 text-start" asp-controller="Auth" asp-action="Logout">Logout</a>
-                <a class="btn btn-link w-100 text-start" href="#">Link 3</a>
-            </div>
+            <!-- Footer -->
+            @Html.Partial("_Footer")
+            <!-- End of Footer -->
+
         </div>
-    </header>
+        <!-- End of Content Wrapper -->
 
-
-    <div class="container">
-        <main role="main" class="pb-3">
-            @RenderBody()
-        </main>
     </div>
+    <!-- End of Page Wrapper -->
 
-    <footer class="border-top footer text-muted d-flex justify-content-center align-items-center">
-        <div class="container d-flex justify-content-center align-items-center">
-            <p>&copy; 2025 - MoneyWise</p>
-        </div>
-    </footer>
+    <!-- Scroll to Top Button-->
+    <a class="scroll-to-top rounded" href="#page-top">
+        <i class="fas fa-angle-up"></i>
+    </a>
 
-    <script src="~/lib/jquery/dist/jquery.min.js"></script>
-    <script src="~/lib/bootstrap/dist/js/bootstrap.bundle.min.js"></script>
-    <script src="~/js/site.js" asp-append-version="true"></script>
-    @await RenderSectionAsync("Scripts", required: false)
+    <!-- JS Scripts -->
+    <script src="~/vendor/jquery/jquery.min.js"></script>
+    <script src="~/vendor/bootstrap/js/bootstrap.bundle.min.js"></script>
+    <script src="~/vendor/jquery-easing/jquery.easing.min.js"></script>
+    <script src="~/js/sb-admin-2.min.js"></script>
+
+    @RenderSection("Scripts", required: false)
 </body>
 </html>

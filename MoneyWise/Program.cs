@@ -5,8 +5,6 @@ using MoneyWise.Services;
 using System.Security.Claims;
 using System.Xml.Linq;
 
-
-
 var builder = WebApplication.CreateBuilder(args);
 //builder.Logging.ClearProviders();
 //builder.Logging.AddConsole();
@@ -76,6 +74,6 @@ app.UseAuthorization();
 
 app.MapControllerRoute(
     name: "default",
-    pattern: "{controller=Home}/{action=Index}/{id?}");
+    pattern: "{controller=Login}/{action=Index}/{id?}");
 
 app.Run();
