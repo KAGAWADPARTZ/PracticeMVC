@@ -1,9 +1,16 @@
-﻿using Microsoft.AspNetCore.Authentication.Google;
+﻿using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.Cookies;
+using Microsoft.AspNetCore.Authentication.Google;
 using MoneyWise.Services;
+using System.Security.Claims;
+using System.Xml.Linq;
+
+
 
 var builder = WebApplication.CreateBuilder(args);
-
+//builder.Logging.ClearProviders();
+//builder.Logging.AddConsole();
+//builder.Logging.SetMinimumLevel(LogLevel.Debug);
 
 // Add services to the container.
 builder.Services.AddControllersWithViews();
@@ -30,6 +37,10 @@ builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationSc
     {
         options.ClientId = builder.Configuration["Authentication:Google:ClientId"]!;
         options.ClientSecret = builder.Configuration["Authentication:Google:ClientSecret"]!;
+        //options.Scope.Add("email");
+        //options.Scope.Add("profile");
+        //options.ClaimActions.MapJsonKey(ClaimTypes.Email, "email");
+        //options.ClaimActions.MapJsonKey(ClaimTypes.Name, "name");
     });
 
 

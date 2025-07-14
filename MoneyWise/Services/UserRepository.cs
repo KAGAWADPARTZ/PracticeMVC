@@ -12,7 +12,7 @@ namespace MoneyWise.Services
         {
             _db = db;
         }
-       
+
         public List<Users> GetAllUsers()
         {
             using var conn = _db.CreateConnection();

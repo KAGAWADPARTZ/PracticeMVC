@@ -23,21 +23,17 @@ namespace MoneyWise.Controllers
         {
             return View();
         }
-        private IActionResult Register()
-        {
-          
-            return View();
-        }
-     
+
         // Redirect to Google login
         [HttpGet]
         public IActionResult GoogleLogin()
         {
             var redirectUrl = Url.Action("GoogleResponse", "Login");
-            var properties = new AuthenticationProperties 
-            { RedirectUri = redirectUrl,
-              IsPersistent = true,
-              ExpiresUtc = DateTimeOffset.UtcNow.AddHours(2) // Set cookie expiration
+            var properties = new AuthenticationProperties
+            {
+                RedirectUri = redirectUrl,
+                IsPersistent = true,
+                ExpiresUtc = DateTimeOffset.UtcNow.AddHours(2) // Set cookie expiration
             };
             return Challenge(properties, "Google");
         }
@@ -46,10 +42,11 @@ namespace MoneyWise.Controllers
         [HttpGet]
         public async Task<IActionResult> GoogleResponse()
         {
-           var result = await _loginService.HandleGoogleLoginAsync();
-            return RedirectToAction(result ?"Index" : "Index", "Home");
+            var result = await _loginService.HandleGoogleLoginAsync();
+            _logger.LogInformation("Google login result: {Result}", result);
+            return RedirectToAction(result ? "Index" : "Index", "Home");
         }
-    
+
         // Logout
         [HttpGet]
         public async Task<IActionResult> Logout()
@@ -57,6 +54,6 @@ namespace MoneyWise.Controllers
             await _loginService.SignOutAsync();
             return RedirectToAction("Index", "Login");
         }
-       
+
     }
 }

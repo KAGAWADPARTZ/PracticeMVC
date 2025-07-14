@@ -26,18 +26,30 @@ namespace MoneyWise.Services
 
             var email = authresult.Principal.FindFirst(ClaimTypes.Email)?.Value;
             var name = authresult.Principal.FindFirst(ClaimTypes.Name)?.Value;
+            Console.WriteLine("Email from Google: " + email);
+            Console.WriteLine("Name from Google: " + name);
 
-            var existingUser = _userRepository.GetAllUsers().FirstOrDefault(u => u.Username == email);
+
+            var existingUser = _userRepository.GetAllUsers().FirstOrDefault(u => u.Email == email);
+
+            Console.WriteLine("🟢 Google login callback triggered");
 
             if (existingUser == null && email != null)
             {
-                var user = new Users
+                Console.WriteLine("❌ No email found");
+                try
                 {
-                    Username = name ?? email,
-                    Email = email,
-                    created_at = null
-                };
-                _userRepository.CreateUser(user);
+                    var user = new Users
+                    {
+                        Username = name ?? email,
+                        Email = email
+                    };
+                    _userRepository.CreateUser(user);
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine("Error inserting user: " + ex.Message);
+                }
             }
 
             context.Session.SetString("name", name ?? "");
@@ -66,5 +78,5 @@ namespace MoneyWise.Services
             }
         }
     }
-  
+
 }

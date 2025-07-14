@@ -11,115 +11,79 @@
     <link rel="stylesheet" href="~/lib/bootstrap/dist/css/bootstrap.min.css" />
     <link rel="stylesheet" href="~/css/site.css" asp-append-version="true" />
     <link rel="stylesheet" href="~/MoneyWise.styles.css" asp-append-version="true" />
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" integrity="sha512-Xx..." crossorigin="anonymous" referrerpolicy="no-referrer" />
 </head>
 <body>
-    <header>
-        <nav class="navbar navbar-expand-lg bg-light px-3">
+    <header class="position-relative">
+        <nav class="navbar navbar-expand-lg px-3 bg-tertiary" data-bs-theme="light">
             <div class="container-fluid d-flex justify-content-between align-items-center">
 
-                <!-- Left: App Name -->
+                <!-- Left: App Name + Search -->
                 <div class="d-flex align-items-center">
-                    <a class="navbar-brand fw-bold me-3" href="#">MoneyWise</a>
+                    <a class="navbar-brand fw-bold me-3" asp-action="Index">MoneyWise</a>
+                    <form class="d-none d-lg-flex me-2" role="search">
+                        <input class="form-control me-2" type="search" placeholder="Search" />
+                        <button class="btn btn-outline-primary" type="submit">Search</button>
+                    </form>
                 </div>
 
-                <!-- Center: Navigation Links -->
-                <div class="d-none d-lg-flex justify-content-center flex-grow-1">
+                <!-- Center: Nav Links -->
+                <div class="d-flex justify-content-center flex-grow-1">
                     <ul class="navbar-nav mb-2 mb-lg-0">
                         <li class="nav-item">
-                            <a class="nav-link active text-black" aria-current="page" asp-action="/Index">Home</a>
+                            <a class="nav-link" asp-action="Index">Home</a>
                         </li>
                         <li class="nav-item">
-                            <a class="nav-link text-black" asp-controller="Savings" asp-action="Index">Savings</a>
+                            <a class="nav-link" asp-controller="Savings" asp-action="Index">Savings</a>
                         </li>
                         <li class="nav-item">
-                            <a class="nav-link text-black" asp-controller="Users" asp-action="Index">Users</a>
+                            <a class="nav-link" asp-controller="Users" asp-action="Index">Users</a>
                         </li>
                     </ul>
                 </div>
 
-                <!-- Right: Search + Hamburger -->
-                <div class="d-flex align-items-center">
-                    <form class="d-none d-lg-flex me-2" role="search">
-                        <input class="form-control me-2" type="search" placeholder="Search" aria-label="Search" />
-                        <button class="btn btn-outline-success" type="submit">Search</button>
-                    </form>
-
+                <!-- Right: Username + Hamburger -->
+                <div class="d-flex align-items-center position-relative">
                     @if (!string.IsNullOrEmpty(username))
                     {
                         <span class="navbar-text me-2">@username</span>
                     }
 
-                    <!-- Hamburger for smaller screens -->
-                    <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarContent"
-                            aria-controls="navbarContent" aria-expanded="false" aria-label="Toggle navigation">
-                        <span class="navbar-toggler-icon"></span>
+                    <!-- Hamburger Toggle -->
+                    <button class="btn btn-outline-primary btn-bg-primary-hover" type="button" data-bs-toggle="collapse"
+                        data-bs-target="#hamburgerMenu" aria-expanded="false" aria-controls="hamburgerMenu">
+                        <i class="fas fa-bars"></i>
                     </button>
                 </div>
-
-            </div>
-
-            <!-- Collapsible content (for smaller screens) -->
-            <div class="collapse navbar-collapse" id="navbarContent">
-                <ul class="navbar-nav">
-                    <li class="nav-item">
-                        <a class="nav-link" asp-action="/Index">Home</a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link" asp-controller="Savings">Savings</a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link" asp-controller="Users" asp-action="Index">Users</a>
-                    </li>
-                </ul>
             </div>
         </nav>
+
+    <!-- Collapsible floating menu (NOT inside nav) -->
+        <div id="hamburgerMenu" class="collapse position-absolute end-0 mt-2 me-3 z-3" style="min-width: 100px;">
+            <div class="bg-white border rounded shadow-sm p-2">
+                <a class="btn btn-link w-100 text-start" href="#">Profile</a>
+                <a class="btn btn-link w-100 text-start" asp-controller="Auth" asp-action="Logout">Logout</a>
+                <a class="btn btn-link w-100 text-start" href="#">Link 3</a>
+            </div>
+        </div>
     </header>
+
+
     <div class="container">
         <main role="main" class="pb-3">
             @RenderBody()
         </main>
     </div>
 
-    <footer class="border-top footer text-muted">
-        <div class="container">
-       <p> &copy; 2025 - MoneyWise </p>
+    <footer class="border-top footer text-muted d-flex justify-content-center align-items-center">
+        <div class="container d-flex justify-content-center align-items-center">
+            <p>&copy; 2025 - MoneyWise</p>
         </div>
     </footer>
+
     <script src="~/lib/jquery/dist/jquery.min.js"></script>
     <script src="~/lib/bootstrap/dist/js/bootstrap.bundle.min.js"></script>
     <script src="~/js/site.js" asp-append-version="true"></script>
     @await RenderSectionAsync("Scripts", required: false)
 </body>
 </html>
-
-
-@*         <nav class="navbar navbar-expand-lg bg-body-tertiary">
-  <div class="container-fluid">
-    <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarTogglerDemo01" aria-controls="navbarTogglerDemo01" aria-expanded="false" aria-label="Toggle navigation">
-      <span class="navbar-toggler-icon"></span>
-    </button>
-    <div class="collapse navbar-collapse" id="navbarTogglerDemo01">
-      <a class="navbar-brand" href="#">Hidden brand</a>
-      <ul class="navbar-nav me-auto mb-2 mb-lg-0">
-        <li class="nav-item">
-          <a class="nav-link active" aria-current="page" href="#">Home</a>
-        </li>
-        <li class="nav-item">
-          <a class="nav-link" href="#">Link</a>
-        </li>
-        <li class="nav-item">
-          <a class="nav-link disabled" aria-disabled="true">Disabled</a>
-        </li>
-      </ul>
-      <form class="d-flex" role="search">
-        <input class="form-control me-2" type="search" placeholder="Search" aria-label="Search"/>
-        <button class="btn btn-outline-success" type="submit">Search</button>
-      </form>
-    </div>
-  </div>
-</nav> 
-@if (!string.IsNullOrEmpty(username))
-                    {
-                      <p class= "text-center" >Welcome, @username! </p>    
-                    }
-*@
