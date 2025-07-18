@@ -1,6 +1,6 @@
 ﻿@* @using Microsoft.AspNetCore.Http
 @{
-    var username = Context.Session.GetString("name");
+   
      Layout = null;
      ViewData["Title"] = "Login";
 }
@@ -50,8 +50,27 @@
 
 @{
     Layout = null;
-    ViewData["Title"] = "Login";
+    var username = Context.Session.GetString("name");
 }
+<script>
+  window.fbAsyncInit = function() {
+    FB.init({
+      appId      : '2576139256081959',
+      cookie     : true,
+      xfbml      : false,
+      version    : 'v23.0'
+    });
+  };
+
+  (function(d, s, id){
+     var js, fjs = d.getElementsByTagName(s)[0];
+     if (d.getElementById(id)) return;
+     js = d.createElement(s); js.id = id;
+     js.src = "https://connect.facebook.net/en_US/sdk.js";
+     fjs.parentNode.insertBefore(js, fjs);
+   }(document, 'script', 'facebook-jssdk'));
+</script>
+
 
 <!DOCTYPE html>
 <html lang="en">
@@ -59,7 +78,7 @@
     <meta charset="utf-8" />
     <meta http-equiv="X-UA-Compatible" content="IE=edge" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>@ViewData["Title"] - MoneyWise</title>
+    <title>@ViewData["Title"] MoneyWise</title>
 
     <link href="~/vendor/fontawesome-free/css/all.min.css" rel="stylesheet" />
     <link href="https://fonts.googleapis.com/css?family=Nunito:200,300,400,600,700,800,900" rel="stylesheet" />
@@ -80,7 +99,7 @@
                                         <h1 class="h4 text-gray-900 mb-4">Welcome Back!</h1>
                                     </div>
 
-                                    <form asp-controller="Login" asp-action="index" method="post" class="user">
+                                    <form asp-controller="Login" asp-action="Index" method="post" class="user">
                                         <div asp-validation-summary="ModelOnly" class="text-danger"></div>
 
                                         <div class="form-group">
@@ -103,10 +122,10 @@
                                         <button type="submit" class="btn btn-primary btn-user btn-block">Login</button>
 
                                         <hr />
-                                        <a href="#" class="btn btn-google btn-user btn-block">
+                                        <a href="/Login/GoogleLogin" class="btn btn-google btn-user btn-block">
                                             <i class="fab fa-google fa-fw"></i> Login with Google
                                         </a>
-                                        <a href="#" class="btn btn-facebook btn-user btn-block">
+                                       <a href="javascript:void(0);" onclick="loginWithFacebook()" class="btn btn-facebook btn-user btn-block">
                                             <i class="fab fa-facebook-f fa-fw"></i> Login with Facebook
                                         </a>
                                     </form>
@@ -133,3 +152,32 @@
     <script src="~/js/sb-admin-2.min.js"></script>
 </body>
 </html>
+
+<script>
+  function loginWithFacebook() {
+    FB.login(function (response) {
+      if (response.authResponse) {
+        const accessToken = response.authResponse.accessToken;
+
+        // Send token to server
+        fetch('/Login/FacebookCallback', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({ accessToken: accessToken })
+        })
+        .then(res => res.json())
+        .then(data => {
+          if (data.success) {
+            window.location.href = '/Home/Index';; // redirect to home
+          } else {
+            alert('Facebook login failed.');
+          }
+        });
+      } else {
+        alert('Facebook login was cancelled or failed.');
+      }
+    }, { scope: 'public_profile,email' });
+  }
+</script>
