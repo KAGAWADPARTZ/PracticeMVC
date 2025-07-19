@@ -7,7 +7,7 @@
 <div class="d-sm-flex align-items-center justify-content-between mb-4">
     <h1 class="h3 mb-0 text-gray-800">Dashboard</h1>
     <a href="#" class="d-none d-sm-inline-block btn btn-sm btn-primary shadow-sm">
-        <i class="fas fa-download fa-sm text-white-50"></i> Generate Report
+        <i class="text-white-50"></i> Add Savings
     </a>
 </div>
 
@@ -55,70 +55,3 @@
      fjs.parentNode.insertBefore(js, fjs);
    }(document, 'script', 'facebook-jssdk'));
 </script>
-
-@*     @section Scripts {
-<script>
-    // Area Chart
-    var ctxArea = document.getElementById("myAreaChart");
-    if (ctxArea) {
-        new Chart(ctxArea, {
-            type: 'line',
-            data: {
-                labels: ["Jan", "Feb", "Mar", "Apr", "May", "Jun"],
-                datasets: [{
-                    label: "Earnings",
-                    data: [0, 10000, 5000, 15000, 10000, 20000],
-                    backgroundColor: "rgba(78, 115, 223, 0.05)",
-                    borderColor: "rgba(78, 115, 223, 1)",
-                    pointRadius: 3,
-                    pointBackgroundColor: "rgba(78, 115, 223, 1)",
-                    pointBorderColor: "rgba(78, 115, 223, 1)",
-                    pointHoverRadius: 3,
-                    pointHoverBackgroundColor: "rgba(78, 115, 223, 1)",
-                    pointHoverBorderColor: "rgba(78, 115, 223, 1)",
-                    pointHitRadius: 10,
-                    pointBorderWidth: 2
-                }]
-            },
-            options: {
-                maintainAspectRatio: false,
-                scales: {
-                    x: { grid: { display: false } },
-                    y: { beginAtZero: true }
-                },
-                plugins: { legend: { display: false } }
-            }
-        });
-    }
-
-    // Pie Chart
-    var ctxPie = document.getElementById("myPieChart");
-    if (ctxPie) {
-        new Chart(ctxPie, {
-            type: 'doughnut',
-            data: {
-                labels: ["Direct", "Social", "Referral"],
-                datasets: [{
-                    data: [55, 30, 15],
-                    backgroundColor: ['#4e73df', '#1cc88a', '#36b9cc'],
-                    hoverBackgroundColor: ['#2e59d9', '#17a673', '#2c9faf'],
-                    hoverBorderColor: "rgba(234, 236, 244, 1)"
-                }]
-            },
-            options: {
-                maintainAspectRatio: false,
-                plugins: {
-                    legend: { position: 'bottom' },
-                    tooltip: {
-                        backgroundColor: "rgb(255,255,255)",
-                        bodyColor: "#858796",
-                        borderColor: '#dddfeb',
-                        borderWidth: 1
-                    }
-                },
-                cutout: "75%"
-            }
-        });
-    }
-</script>
-} *@

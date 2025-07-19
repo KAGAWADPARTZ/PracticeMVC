@@ -46,6 +46,7 @@ builder.Services.AddHttpContextAccessor();
 builder.Services.AddScoped<LoginService>();
 builder.Services.AddSingleton<MoneyWise.Services.DatabaseService>();
 builder.Services.AddScoped<UserRepository>();
+builder.Services.AddScoped<FacebookAuthService>();
 //builder.Services.AddGoogleAuthentication(builder.Configuration);
 
 //var properties = new AuthenticationProperties
