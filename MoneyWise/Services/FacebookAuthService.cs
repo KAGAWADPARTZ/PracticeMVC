@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Http;
 using Newtonsoft.Json;
+using MoneyWise.Models;
 
 namespace MoneyWise.Services
 {
@@ -14,10 +15,12 @@ namespace MoneyWise.Services
     public class FacebookAuthService
     {
         private readonly IHttpContextAccessor _httpContextAccessor;
+        private readonly UserRepository _userRepository;
 
-        public FacebookAuthService(IHttpContextAccessor httpContextAccessor)
+        public FacebookAuthService(IHttpContextAccessor httpContextAccessor, UserRepository userRepository)
         {
             _httpContextAccessor = httpContextAccessor;
+            _userRepository = userRepository;
         }
 
         public async Task<bool> HandleFacebookLoginAsync(FacebookTokenModel model)
@@ -40,14 +43,22 @@ namespace MoneyWise.Services
             string email = fbUser.email;
             string pictureUrl = fbUser.picture.data.url;
 
+            // Insert user into Supabase (PostgreSQL)
+            var user = new Users
+            {
+                Username = name,
+                Email = email
+            };
+            _userRepository.CreateUser(user);
+
             var claims = new List<Claim>
-    {
+            {
                 new Claim(ClaimTypes.NameIdentifier, facebookId),
                 new Claim(ClaimTypes.Name, name),
                 new Claim(ClaimTypes.Email, email),
                 new Claim("FacebookAccessToken", model.AccessToken),
                 new Claim("ProfilePicture", pictureUrl)
-    };
+            };
 
             var identity = new ClaimsIdentity(claims, CookieAuthenticationDefaults.AuthenticationScheme);
             var principal = new ClaimsPrincipal(identity);
