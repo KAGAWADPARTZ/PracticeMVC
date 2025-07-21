@@ -1,6 +1,6 @@
 ﻿namespace MoneyWise.Models
 {
-    public class SavingsModel
+    public class HistoryModel
     {
     }
 }
