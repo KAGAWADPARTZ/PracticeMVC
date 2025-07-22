@@ -48,6 +48,11 @@ namespace MoneyWise.Services
                         var user = JsonDocument.Parse(await response.Content.ReadAsStringAsync()).RootElement;
 
                         context.RunClaimActions(user);
+
+                        //current user
+                        var httpContext = context.HttpContext;
+                        var name = user.GetProperty("name").GetString();
+                        httpContext.Session.SetString("name", name ?? string.Empty);
                     };
                 });
 

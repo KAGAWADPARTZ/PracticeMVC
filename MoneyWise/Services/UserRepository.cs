@@ -1,55 +1,48 @@
-﻿using Dapper;
-using MoneyWise.Models;
-using System.Data;
+﻿using MoneyWise.Models;
+using Microsoft.EntityFrameworkCore;
 
 namespace MoneyWise.Services
 {
     public class UserRepository
     {
-        private readonly DatabaseService _db;
+        private readonly AppDbContext _context;
 
-        public UserRepository(DatabaseService db)
+        public UserRepository(AppDbContext context)
         {
-            _db = db;
+            _context = context;
         }
 
         public List<Users> GetAllUsers()
         {
-            using var conn = _db.CreateConnection();
-            var sql = @"SELECT ""UserID"", ""Username"", ""Email"", ""created_at"" FROM ""Users""";
-            return conn.Query<Users>(sql).ToList();
+            return _context.Users.ToList();
         }
 
         public Users? GetUserById(int id)
         {
-            using var conn = _db.CreateConnection();
-            var sql = @"SELECT ""UserID"", ""Username"", ""Email"", ""created_at"" FROM ""Users"" WHERE ""UserID"" = @id";
-            return conn.QuerySingleOrDefault<Users>(sql, new { id });
+            return _context.Users.Find(id);
         }
 
         public void CreateUser(Users user)
         {
-            using var conn = _db.CreateConnection();
-            var sql = @"INSERT INTO ""Users"" (""Username"", ""Email"", ""created_at"") 
-                    VALUES (@Username, @Email, NOW())";
-            conn.Execute(sql, user);
+            user.created_at = DateTime.UtcNow;
+            _context.Users.Add(user);
+            _context.SaveChanges();
         }
 
         public void UpdateUser(Users user)
         {
-            using var conn = _db.CreateConnection();
-            var sql = @"UPDATE ""Users"" 
-                    SET ""Username"" = @Username, 
-                        ""Email"" = @Email
-                    WHERE ""UserID"" = @UserID";
-            conn.Execute(sql, user);
+            _context.Users.Update(user);
+            _context.SaveChanges();
         }
 
         public void DeleteUser(int id)
         {
-            using var conn = _db.CreateConnection();
-            var sql = @"DELETE FROM ""Users"" WHERE ""UserID"" = @id";
-            conn.Execute(sql, new { id });
+            var user = _context.Users.Find(id);
+            if (user != null)
+            {
+                _context.Users.Remove(user);
+                _context.SaveChanges();
+            }
         }
     }
 }

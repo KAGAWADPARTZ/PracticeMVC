@@ -36,20 +36,27 @@ namespace MoneyWise.Services
                 return false;
 
             var json = await fbResponse.Content.ReadAsStringAsync();
-            dynamic fbUser = JsonConvert.DeserializeObject(json);
+            dynamic fbUser = JsonConvert.DeserializeObject(json) ?? " ";
 
             string facebookId = fbUser.id;
             string name = fbUser.name;
             string email = fbUser.email;
             string pictureUrl = fbUser.picture.data.url;
 
-            // Insert user into Supabase (PostgreSQL)
-            var user = new Users
+            // Check if user already exists in the database by email
+            var existingUser = _userRepository.GetAllUsers()
+                .FirstOrDefault(u => u.Email != null && u.Email.Equals(email, StringComparison.OrdinalIgnoreCase));
+
+            if (existingUser == null)
             {
-                Username = name,
-                Email = email
-            };
-            _userRepository.CreateUser(user);
+                // Insert user into Supabase (PostgreSQL) only if not exists
+                var user = new Users
+                {
+                    Username = name,
+                    Email = email
+                };
+                _userRepository.CreateUser(user);
+            }
 
             var claims = new List<Claim>
             {
@@ -71,6 +78,8 @@ namespace MoneyWise.Services
                     IsPersistent = true,
                     ExpiresUtc = DateTime.UtcNow.AddHours(2)
                 });
+
+            _httpContextAccessor.HttpContext.Session.SetString("name", name ?? string.Empty);
 
             return true;
         }

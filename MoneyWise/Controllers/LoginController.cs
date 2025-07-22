@@ -21,8 +21,13 @@ namespace MoneyWise.Controllers
             _loginService = loginService;
             _facebookAuthService = facebookAuthService;
         }
+        [HttpGet]
         public IActionResult Index()
         {
+            if (User.Identity.IsAuthenticated)
+            {
+                return RedirectToAction("Index", "Home");
+            }
             return View();
         }
 
