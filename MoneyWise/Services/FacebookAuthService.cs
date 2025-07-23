@@ -76,7 +76,7 @@ namespace MoneyWise.Services
                 new AuthenticationProperties
                 {
                     IsPersistent = true,
-                    ExpiresUtc = DateTime.UtcNow.AddHours(2)
+                    ExpiresUtc = DateTime.UtcNow.AddSeconds(2)
                 });
 
             _httpContextAccessor.HttpContext.Session.SetString("name", name ?? string.Empty);

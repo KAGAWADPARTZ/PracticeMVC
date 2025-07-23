@@ -5,6 +5,7 @@
     {
         var claim = ((ClaimsIdentity)User.Identity).FindFirst("ProfilePicture");
         profilePicture = claim?.Value ?? "img/undraw_profile.svg";
+      
     }
     else
     {

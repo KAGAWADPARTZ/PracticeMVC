@@ -19,19 +19,18 @@ namespace MoneyWise.Services
         public async Task<bool> HandleGoogleLoginAsync()
         {
             var context = _httpContextAccessor.HttpContext!;
-            var authresult = await context.AuthenticateAsync(CookieAuthenticationDefaults.AuthenticationScheme);
+            var result = await context.AuthenticateAsync(CookieAuthenticationDefaults.AuthenticationScheme);
 
-            if (!authresult.Succeeded)
+            if (!result.Succeeded)
                 return false;
 
-            var email = authresult.Principal.FindFirst(ClaimTypes.Email)?.Value;
-            var name = authresult.Principal.FindFirst(ClaimTypes.Name)?.Value;
+            var email = result.Principal.FindFirst(ClaimTypes.Email)?.Value;
+            var name = result.Principal.FindFirst(ClaimTypes.Name)?.Value;
 
             var existingUser = _userRepository.GetAllUsers().FirstOrDefault(u => u.Email == email);
 
             if (existingUser == null && email != null)
             {
-              
                 try
                 {
                     var user = new Users
@@ -47,7 +46,29 @@ namespace MoneyWise.Services
                 }
             }
 
-            context.Session.SetString("name", name ?? "");
+            // ✅ Re-create claims and sign in manually
+                var claims = new List<Claim>
+                {
+                    new Claim(ClaimTypes.NameIdentifier, email ?? ""),
+                    new Claim(ClaimTypes.Name, name ?? ""),
+                    new Claim(ClaimTypes.Email, email ?? "")
+                };
+
+            var identity = new ClaimsIdentity(claims, CookieAuthenticationDefaults.AuthenticationScheme);
+            var principal = new ClaimsPrincipal(identity);
+
+            // ✅ Set session
+            context.Session.SetString("name", name ?? string.Empty);
+
+            // ✅ Sign in
+            await context.SignInAsync(
+                CookieAuthenticationDefaults.AuthenticationScheme,
+                principal,
+                new AuthenticationProperties
+                {
+                    IsPersistent = true,
+                    ExpiresUtc = DateTime.UtcNow.AddSeconds(60)
+                });
 
             return true;
         }

@@ -13,15 +13,14 @@ var connectionString = builder.Configuration.GetConnectionString("DefaultConnect
 builder.Services.AddDbContext<AppDbContext>(options =>
     options.UseNpgsql(connectionString)); // Use UseSqlServer for SQL Server
 
-
 builder.Services.AddControllersWithViews();
 
-// 🔥 Required to support session state
+//  Required to support session state
 builder.Services.AddDistributedMemoryCache();
 
 builder.Services.AddSession(options =>
 {
-    options.IdleTimeout = TimeSpan.FromMinutes(2);
+    options.IdleTimeout = TimeSpan.FromSeconds(5);
     options.Cookie.HttpOnly = true;
     options.Cookie.IsEssential = true; // Make the session cookie essential
 });
@@ -31,15 +30,29 @@ builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationSc
     .AddCookie(options =>
     {
         options.LoginPath = "/Login/Index";
-        options.ExpireTimeSpan = TimeSpan.FromMinutes(2);
+        options.ExpireTimeSpan = TimeSpan.FromSeconds(5);
         options.SlidingExpiration = false; // Optional: renew the cookie on each request
+        options.Events = new CookieAuthenticationEvents
+        {
+            OnValidatePrincipal = async context =>
+            {
+                var expiresUtc = context.Properties.ExpiresUtc;
+                var currentUtc = DateTimeOffset.UtcNow;
+
+                if (expiresUtc.HasValue && expiresUtc.Value < currentUtc)
+                {
+                    // Cookie is expired - sign out
+                    context.RejectPrincipal();
+                    await context.HttpContext.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme);
+                }
+            }
+        };
     })
     .AddGoogle("Google", options =>
     {
         options.ClientId = builder.Configuration["Authentication:Google:ClientId"]!;
         options.ClientSecret = builder.Configuration["Authentication:Google:ClientSecret"]!;
     });
-
 
 builder.Services.AddHttpContextAccessor();
 builder.Services.AddScoped<LoginService>();
@@ -62,21 +75,24 @@ app.UseStaticFiles();
 app.UseRouting();
 app.UseSession();
 
-//username session
+//cookies and session middleware
 app.Use(async (context, next) =>
 {
-    if (context.User.Identity.IsAuthenticated && string.IsNullOrEmpty(context.Session.GetString("name")))
+    var isAuthenticated = context.User.Identity?.IsAuthenticated ?? false;
+    var sessionName = context.Session.GetString("name");
+
+    if (isAuthenticated && string.IsNullOrEmpty(sessionName))
     {
-        var name = context.User.Claims.FirstOrDefault(c => c.Type == ClaimTypes.Name)?.Value;
-        context.Session.SetString("name", name ?? string.Empty);
+        await context.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme);
+        context.Response.Redirect("/Login/Index");
+        return;
     }
+
     await next();
-}); 
+});
 
 app.UseAuthentication();
 app.UseAuthorization();
-
-
 
 app.MapControllerRoute(
     name: "default",
