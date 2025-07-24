@@ -1,55 +1,65 @@
-﻿using Dapper;
+﻿using System.Text;
+using System.Text.Json;
 using MoneyWise.Models;
-using System.Data;
 
 namespace MoneyWise.Services
 {
-    public class TransactionRepository
+    public class TransactionService
     {
-        private readonly DatabaseService _db;
+        private readonly HttpClient _httpClient;
+        private const string SupabaseUrl = "https://gzkgebvtemfidnwneqqt.supabase.co";
+        private const string SupabaseApiKey = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imd6a2dlYnZ0ZW1maWRud25lcXF0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTE5NTQ3NTIsImV4cCI6MjA2NzUzMDc1Mn0.YysxMOrj_Rv3m9VLqQk9BFPOQOY9yhJNIBV8-jwlxYA";
 
-        public TransactionRepository(DatabaseService db)
+        public TransactionService()
         {
-            _db = db;
+            _httpClient = new HttpClient
+            {
+                BaseAddress = new Uri(SupabaseUrl)
+            };
+            _httpClient.DefaultRequestHeaders.Add("apikey", SupabaseApiKey);
+            _httpClient.DefaultRequestHeaders.Add("Authorization", $"Bearer {SupabaseApiKey}");
         }
 
-        public List<Transaction> GetUserTransaction()
+        public async Task<List<Transaction>> GetUserTransactionsAsync(int userId)
         {
-            using var conn = _db.CreateConnection();
-            var sql = @"SELECT ""TransactionID"", ""UserID"", ""created_at"" , ""created_at"" FROM ""Transactions""";
-            return conn.Query<Transaction>(sql).ToList();
+            var response = await _httpClient.GetAsync($"/rest/v1/Transactions?UserID=eq.{userId}&select=*");
+            response.EnsureSuccessStatusCode();
+            var json = await response.Content.ReadAsStringAsync();
+            return JsonSerializer.Deserialize<List<Transaction>>(json) ?? new List<Transaction>();
         }
 
-        public Transaction? GetUserTransactionById(int id)
+        public async Task<Transaction?> GetTransactionByIdAsync(int transactionId)
         {
-            using var conn = _db.CreateConnection();
-            var sql = @"SELECT ""TransactionID"", ""UserID"", ""created_at"" ""updated_at"" FROM ""Transaction"" WHERE ""UserID"" = @id";
-            return conn.QuerySingleOrDefault<Transaction>(sql, new { id });
+            var response = await _httpClient.GetAsync($"/rest/v1/Transactions?TransactionID=eq.{transactionId}&select=*");
+            response.EnsureSuccessStatusCode();
+            var json = await response.Content.ReadAsStringAsync();
+            return JsonSerializer.Deserialize<List<Transaction>>(json)?.FirstOrDefault();
         }
 
-        public void CreateTransaction(Transaction transaction)
+        public async Task<bool> CreateTransactionAsync(Transaction transaction)
         {
-            using var conn = _db.CreateConnection();
-            var sql = @"INSERT INTO ""Transations"" (""UserID"", ""Savings"", ""Wants"",""Needs"",""Investment"",  ""created_at"") 
-                    VALUES (@Username, @Email, NOW())";
-            conn.Execute(sql, transaction);
+            var json = JsonSerializer.Serialize(transaction);
+            var content = new StringContent(json, Encoding.UTF8, "application/json");
+            var response = await _httpClient.PostAsync("/rest/v1/Transactions", content);
+            return response.IsSuccessStatusCode;
         }
 
-        public void UpdateUser(Users user)
+        public async Task<bool> UpdateTransactionAsync(int id, Transaction transaction)
         {
-            using var conn = _db.CreateConnection();
-            var sql = @"UPDATE ""Transaction"" 
-                    SET ""Username"" = @Username, 
-                        ""Email"" = @Email
-                    WHERE ""UserID"" = @UserID";
-            conn.Execute(sql, user);
+            var json = JsonSerializer.Serialize(transaction);
+            var content = new StringContent(json, Encoding.UTF8, "application/json");
+            var request = new HttpRequestMessage(new HttpMethod("PATCH"), $"/rest/v1/Transactions?TransactionID=eq.{id}")
+            {
+                Content = content
+            };
+            var response = await _httpClient.SendAsync(request);
+            return response.IsSuccessStatusCode;
         }
 
-        public void DeleteUser(int id)
+        public async Task<bool> DeleteTransactionAsync(int id)
         {
-            using var conn = _db.CreateConnection();
-            var sql = @"DELETE FROM ""Users"" WHERE ""UserID"" = @id";
-            conn.Execute(sql, new { id });
+            var response = await _httpClient.DeleteAsync($"/rest/v1/Transactions?TransactionID=eq.{id}");
+            return response.IsSuccessStatusCode;
         }
     }
 }

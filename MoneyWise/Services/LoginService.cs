@@ -24,10 +24,10 @@ namespace MoneyWise.Services
             if (!result.Succeeded)
                 return false;
 
-            var email = result.Principal.FindFirst(ClaimTypes.Email)?.Value;
-            var name = result.Principal.FindFirst(ClaimTypes.Name)?.Value;
+            var email = result.Principal.FindFirst(ClaimTypes.Email)?.Value ?? "";
+            var name = result.Principal.FindFirst(ClaimTypes.Name)?.Value ?? "";
 
-            var existingUser = _userRepository.GetAllUsers().FirstOrDefault(u => u.Email == email);
+            var existingUser = await _userRepository.GetUserByEmail(email);
 
             if (existingUser == null && email != null)
             {
@@ -36,9 +36,10 @@ namespace MoneyWise.Services
                     var user = new Users
                     {
                         Username = name ?? email,
-                        Email = email
+                        Email = email,
+                        created_at = DateTime.UtcNow
                     };
-                    _userRepository.CreateUser(user);
+                 await _userRepository.CreateUser(user);
                 }
                 catch (Exception ex)
                 {
@@ -46,7 +47,7 @@ namespace MoneyWise.Services
                 }
             }
 
-            // ✅ Re-create claims and sign in manually
+            // Re-create claims and sign in manually
                 var claims = new List<Claim>
                 {
                     new Claim(ClaimTypes.NameIdentifier, email ?? ""),
@@ -57,10 +58,10 @@ namespace MoneyWise.Services
             var identity = new ClaimsIdentity(claims, CookieAuthenticationDefaults.AuthenticationScheme);
             var principal = new ClaimsPrincipal(identity);
 
-            // ✅ Set session
+            //  Set session
             context.Session.SetString("name", name ?? string.Empty);
 
-            // ✅ Sign in
+            //  Sign in
             await context.SignInAsync(
                 CookieAuthenticationDefaults.AuthenticationScheme,
                 principal,

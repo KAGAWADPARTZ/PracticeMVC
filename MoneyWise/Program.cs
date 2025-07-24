@@ -10,8 +10,15 @@ using Microsoft.EntityFrameworkCore;
 var builder = WebApplication.CreateBuilder(args);
 
 var connectionString = builder.Configuration.GetConnectionString("DefaultConnection");
-builder.Services.AddDbContext<AppDbContext>(options =>
-    options.UseNpgsql(connectionString)); // Use UseSqlServer for SQL Server
+// builder.Services.AddDbContext<AppDbContext>(options =>
+//     options.UseNpgsql(connectionString)); // Use UseSqlServer for SQL Server
+
+// Load appsettings.json, secrets, env vars, etc.
+builder.Configuration
+    .AddJsonFile("appsettings.json", optional: false, reloadOnChange: true)
+    .AddJsonFile($"appsettings.{builder.Environment.EnvironmentName}.json", optional: true)
+    .AddEnvironmentVariables()
+    .AddUserSecrets<Program>(); // Optional, for dev
 
 builder.Services.AddControllersWithViews();
 
@@ -56,7 +63,9 @@ builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationSc
 
 builder.Services.AddHttpContextAccessor();
 builder.Services.AddScoped<LoginService>();
-builder.Services.AddSingleton<MoneyWise.Services.DatabaseService>();
+// builder.Services.AddSingleton<MoneyWise.Services.DatabaseService>();
+builder.Services.AddSingleton<SupabaseService>();
+builder.Services.AddScoped<TransactionService>();
 builder.Services.AddScoped<UserRepository>();
 builder.Services.AddScoped<FacebookAuthService>();
 

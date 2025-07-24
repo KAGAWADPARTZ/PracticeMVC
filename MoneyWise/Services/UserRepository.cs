@@ -1,48 +1,42 @@
 ﻿using MoneyWise.Models;
-using Microsoft.EntityFrameworkCore;
+using System;
+using System.Collections.Generic;
+using System.Threading.Tasks;
 
 namespace MoneyWise.Services
 {
     public class UserRepository
     {
-        private readonly AppDbContext _context;
+        private readonly SupabaseService _supabaseService;
 
-        public UserRepository(AppDbContext context)
+        public UserRepository(SupabaseService supabaseService)
         {
-            _context = context;
+            _supabaseService = supabaseService;
         }
 
-        public List<Users> GetAllUsers()
+        public async Task<List<Users>> GetAllUsers()
         {
-            return _context.Users.ToList();
+            return await _supabaseService.GetAllUsersAsync();
         }
 
-        public Users? GetUserById(int id)
+        public async Task<Users?> GetUserByEmail(string email)
         {
-            return _context.Users.Find(id);
+            return await _supabaseService.GetUserByEmailAsync(email);
         }
 
-        public void CreateUser(Users user)
+        public async Task<bool> CreateUser(Users user)  
         {
-            user.created_at = DateTime.UtcNow;
-            _context.Users.Add(user);
-            _context.SaveChanges();
+            return await _supabaseService.CreateUserAsync(user);
         }
 
-        public void UpdateUser(Users user)
+        public async Task<bool> UpdateUser(Guid id, Users user)
         {
-            _context.Users.Update(user);
-            _context.SaveChanges();
+            return await _supabaseService.UpdateUserAsync(id, user);
         }
 
-        public void DeleteUser(int id)
+        public async Task<bool> DeleteUser(Guid id)
         {
-            var user = _context.Users.Find(id);
-            if (user != null)
-            {
-                _context.Users.Remove(user);
-                _context.SaveChanges();
-            }
+            return await _supabaseService.DeleteUserAsync(id);
         }
     }
 }

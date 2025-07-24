@@ -9,7 +9,7 @@ namespace MoneyWise.Services
 {
     public class FacebookTokenModel
     {
-        public string AccessToken { get; set; }
+        public string? AccessToken { get; set; }
     }
 
     public class FacebookAuthService
@@ -44,8 +44,8 @@ namespace MoneyWise.Services
             string pictureUrl = fbUser.picture.data.url;
 
             // Check if user already exists in the database by email
-            var existingUser = _userRepository.GetAllUsers()
-                .FirstOrDefault(u => u.Email != null && u.Email.Equals(email, StringComparison.OrdinalIgnoreCase));
+            var users = await _userRepository.GetAllUsers();
+            var existingUser = users.FirstOrDefault(u => u.Email != null && u.Email.Equals(email, StringComparison.OrdinalIgnoreCase));
 
             if (existingUser == null)
             {
@@ -55,7 +55,7 @@ namespace MoneyWise.Services
                     Username = name,
                     Email = email
                 };
-                _userRepository.CreateUser(user);
+              await _userRepository.CreateUser(user);
             }
 
             var claims = new List<Claim>
@@ -76,7 +76,7 @@ namespace MoneyWise.Services
                 new AuthenticationProperties
                 {
                     IsPersistent = true,
-                    ExpiresUtc = DateTime.UtcNow.AddSeconds(2)
+                    ExpiresUtc = DateTime.UtcNow.AddSeconds(60)
                 });
 
             _httpContextAccessor.HttpContext.Session.SetString("name", name ?? string.Empty);
