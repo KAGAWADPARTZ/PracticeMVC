@@ -28,6 +28,7 @@ namespace MoneyWise.Services
             if (string.IsNullOrWhiteSpace(model.AccessToken))
                 return false;
 
+            // create a new http client
             using var client = new HttpClient();
             var fbResponse = await client.GetAsync(
                 $"https://graph.facebook.com/me?fields=id,name,email,picture.width(100).height(100)&access_token={model.AccessToken}");
@@ -35,6 +36,7 @@ namespace MoneyWise.Services
             if (!fbResponse.IsSuccessStatusCode)
                 return false;
 
+            // get the response from the facebook api
             var json = await fbResponse.Content.ReadAsStringAsync();
             dynamic fbUser = JsonConvert.DeserializeObject(json) ?? " ";
 
@@ -49,7 +51,7 @@ namespace MoneyWise.Services
 
             if (existingUser == null)
             {
-                // Insert user into Supabase (PostgreSQL) only if not exists
+                // Insert user into Supabase only if not exists
                 var user = new Users
                 {
                     Username = name,
@@ -58,6 +60,7 @@ namespace MoneyWise.Services
               await _userRepository.CreateUser(user);
             }
 
+            // create claims for the user
             var claims = new List<Claim>
             {
                 new Claim(ClaimTypes.NameIdentifier, facebookId),
@@ -66,9 +69,12 @@ namespace MoneyWise.Services
                 new Claim("FacebookAccessToken", model.AccessToken),
                 new Claim("ProfilePicture", pictureUrl)
             };
-
+            // get user cookies and identity
             var identity = new ClaimsIdentity(claims, CookieAuthenticationDefaults.AuthenticationScheme);
             var principal = new ClaimsPrincipal(identity);
+
+            //check if the httpcontext is null
+           if (_httpContextAccessor.HttpContext == null) return false;
 
             await _httpContextAccessor.HttpContext.SignInAsync(
                 CookieAuthenticationDefaults.AuthenticationScheme,

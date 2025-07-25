@@ -17,7 +17,8 @@
     <div id="wrapper">
 
         <!-- Sidebar -->
-        @Html.Partial("_Sidebar")
+       @* @Html.Partial("_Sidebar") *@
+        <partial name="_Sidebar"/>
         <!-- End of Sidebar -->
 
         <!-- Content Wrapper -->
@@ -26,9 +27,12 @@
             <!-- Main Content -->
             <div id="content">
                 <!-- Topbar -->
-                @Html.Partial("_Topbar")
+                @* @Html.Partial("_Topbar") *@
+                <partial name="_Topbar"/>
+
                 <!-- End of Topbar -->
-                @Html.Partial("_CookieExpireModal")
+                @* @Html.Partial("_CookieExpireModal") *@
+                <partial name="_CookieExpireModal" />
                 <!-- Page Content -->
                 <div class="container-fluid">
                     @RenderBody()
@@ -38,7 +42,8 @@
             <!-- End of Main Content -->
 
             <!-- Footer -->
-            @Html.Partial("_Footer")
+            @* @Html.Partial("_Footer") *@
+            <partial name="_Footer" />
             <!-- End of Footer -->
 
         </div>
