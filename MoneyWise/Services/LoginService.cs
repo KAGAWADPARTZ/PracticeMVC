@@ -68,7 +68,7 @@ namespace MoneyWise.Services
                 new AuthenticationProperties
                 {
                     IsPersistent = true,
-                    ExpiresUtc = DateTime.UtcNow.AddSeconds(60)
+                    ExpiresUtc = DateTime.UtcNow.AddHours(1)
                 });
 
             return true;

@@ -1,6 +1,5 @@
 ﻿using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.Cookies;
-using Microsoft.AspNetCore.Authentication.Google;
 using MoneyWise.Services;
 using System.Security.Claims;
 using System.Xml.Linq;
@@ -27,7 +26,7 @@ builder.Services.AddDistributedMemoryCache();
 
 builder.Services.AddSession(options =>
 {
-    options.IdleTimeout = TimeSpan.FromSeconds(5);
+    options.IdleTimeout = TimeSpan.FromHours(1);
     options.Cookie.HttpOnly = true;
     options.Cookie.IsEssential = true; // Make the session cookie essential
 });
@@ -37,7 +36,7 @@ builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationSc
     .AddCookie(options =>
     {
         options.LoginPath = "/Login/Index";
-        options.ExpireTimeSpan = TimeSpan.FromSeconds(5);
+        options.ExpireTimeSpan = TimeSpan.FromHours(1);
         options.SlidingExpiration = false; // Optional: renew the cookie on each request
         options.Events = new CookieAuthenticationEvents
         {
