@@ -27,6 +27,9 @@ namespace MoneyWise.Services
             var email = result.Principal.FindFirst(ClaimTypes.Email)?.Value ?? "";
             var name = result.Principal.FindFirst(ClaimTypes.Name)?.Value ?? "";
 
+            // Add debugging
+            Console.WriteLine($"Google login - Email: {email}, Name: {name}");
+
             var existingUser = await _userRepository.GetUserByEmail(email);
 
             if (existingUser == null && email != null)
@@ -35,6 +38,7 @@ namespace MoneyWise.Services
                 {
                     var user = new Users
                     {
+                        // UserID = Guid.NewGuid(),
                         Username = name ?? email,
                         Email = email,
                         created_at = DateTime.UtcNow

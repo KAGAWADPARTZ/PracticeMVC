@@ -67,6 +67,8 @@ builder.Services.AddSingleton<SupabaseService>();
 builder.Services.AddScoped<TransactionService>();
 builder.Services.AddScoped<UserRepository>();
 builder.Services.AddScoped<FacebookAuthService>();
+builder.Services.AddScoped<SavingsService>();
+builder.Services.AddScoped<SavingsCalculatorService>();
 
 var app = builder.Build();
 

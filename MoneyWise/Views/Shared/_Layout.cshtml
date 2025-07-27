@@ -24,6 +24,9 @@
         <!-- Content Wrapper -->
         <div id="content-wrapper" class="d-flex flex-column">
 
+      
+
+
             <!-- Main Content -->
             <div id="content">
                 <!-- Topbar -->
@@ -33,6 +36,7 @@
                 <!-- End of Topbar -->
                 @* @Html.Partial("_CookieExpireModal") *@
                 <partial name="_CookieExpireModal" />
+                  <partial name="_SavingsModal" />
                 <!-- Page Content -->
                 <div class="container-fluid">
                     @RenderBody()
@@ -58,7 +62,7 @@
     </a>
 
     <!-- Include the Savings Modal -->
-    <partial name="_SavingsModal" />
+  
 
     <!-- JS Scripts -->
     <script src="~/vendor/jquery/jquery.min.js"></script>
@@ -70,6 +74,7 @@
     <script src="~/js/demo/chart-pie-demo.js"></script>
     <script src="~/js/ExpireCookieModal.js"></script>
     <script src="~/js/SavingsModal.js"></script>
+    <script src="~/js/SavingsCalculator.js"></script>
 
     @RenderSection("Scripts", required: false)
 </body>

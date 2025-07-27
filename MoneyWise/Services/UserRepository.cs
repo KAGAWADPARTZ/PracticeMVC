@@ -29,12 +29,12 @@ namespace MoneyWise.Services
             return await _supabaseService.CreateUserAsync(user);
         }
 
-        public async Task<bool> UpdateUser(Guid id, Users user)
+        public async Task<bool> UpdateUser(int id, Users user)
         {
             return await _supabaseService.UpdateUserAsync(id, user);
         }
 
-        public async Task<bool> DeleteUser(Guid id)
+        public async Task<bool> DeleteUser(int id)
         {
             return await _supabaseService.DeleteUserAsync(id);
         }

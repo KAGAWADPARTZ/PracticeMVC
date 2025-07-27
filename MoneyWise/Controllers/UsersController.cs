@@ -39,7 +39,7 @@ namespace MoneyWise.Controllers
         }
 
         [HttpPut("{id}")]
-        public async Task<IActionResult> Update(Guid id, [FromBody] Users user)
+        public async Task<IActionResult> Update(int id, [FromBody] Users user)
         {
             var result = await _userRepository.UpdateUser(id, user);
             if (!result) return NotFound();
@@ -47,7 +47,7 @@ namespace MoneyWise.Controllers
         }
 
         [HttpDelete("{id}")]
-        public async Task<IActionResult> Delete(Guid id)
+        public async Task<IActionResult> Delete(int id)
         {
             var result = await _userRepository.DeleteUser(id);
             if (!result) return NotFound();
