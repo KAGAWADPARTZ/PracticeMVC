@@ -13,11 +13,13 @@ namespace MoneyWise.Controllers
         private readonly ILogger<HomeController> _logger;
         // private readonly TransactionService _transactionService;
         private readonly SavingsService _savingsService;
+        private readonly SavingsCalculatorService _calculatorService;
 
-        public HomeController(ILogger<HomeController> logger, SavingsService savingsService)
+        public HomeController(ILogger<HomeController> logger, SavingsService savingsService, SavingsCalculatorService calculatorService)
         {
             _logger = logger;
             _savingsService = savingsService;
+            _calculatorService = calculatorService;
         }
 
         public async Task<IActionResult> Index()
@@ -27,14 +29,19 @@ namespace MoneyWise.Controllers
             if (string.IsNullOrEmpty(userEmail))
             {
                 ViewBag.MonthlyEarnings = 0;
+                ViewBag.AnnualEarnings = 0;
                 return View();
             }
 
             var savings = await _savingsService.GetUserSavingsAsync(userEmail);
+            var annualEarnings = await _calculatorService.CalculateAnnualEarningsAsync(userEmail);
+
             ViewBag.MonthlyEarnings = savings?.Amount ?? 0;
+            ViewBag.AnnualEarnings = annualEarnings;
 
             return View();
         }
+
         [HttpGet]
         public async Task<IActionResult> GetSavings()
         {

@@ -119,6 +119,25 @@ namespace MoneyWise.Services
                 return new List<TransactionSummary>();
             }
         }
+        public async Task<decimal> CalculateAnnualEarningsAsync(string userEmail)
+        {
+            var users = await _userRepository.GetAllUsers();
+            var user = users.FirstOrDefault(u => u.Email == userEmail);
+
+            if (user == null)
+                return 0;
+
+            var transactions = await GetUserTransactionsAsync(user.UserID);
+            var currentYear = DateTime.UtcNow.Year;
+
+            // Sum all deposits (positive amounts) made this year
+            var totalAnnualEarnings = transactions
+                .Where(t => t.Amount > 0 && t.created_at?.Year == currentYear)
+                .Sum(t => t.Amount);
+
+            return totalAnnualEarnings;
+        }
+
     }
 
     public class SavingsSummary
