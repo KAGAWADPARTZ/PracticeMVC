@@ -143,10 +143,18 @@ namespace MoneyWise.Services
         public async Task<bool> CreateSavingsAsync(Savings savings)
         {
             var json = JsonSerializer.Serialize(savings);
+            Console.WriteLine($"JSON being sent to Supabase: {json}");
+
             var content = new StringContent(json, Encoding.UTF8, "application/json");
             var response = await _httpClient.PostAsync("/rest/v1/Savings", content);
+
+            var responseContent = await response.Content.ReadAsStringAsync();
+            Console.WriteLine($"Response status: {response.StatusCode}");
+            Console.WriteLine($"Response body: {responseContent}");
+
             return response.IsSuccessStatusCode;
         }
+
 
         public async Task<bool> UpdateSavingsAsync(int savingsId, Savings savings)
         {

@@ -20,12 +20,22 @@ namespace MoneyWise.Controllers
             _savingsService = savingsService;
         }
 
-        public IActionResult Index()
+        public async Task<IActionResult> Index()
         {
+            var userEmail = User.FindFirst(ClaimTypes.Email)?.Value;
+
+            if (string.IsNullOrEmpty(userEmail))
+            {
+                ViewBag.MonthlyEarnings = 0;
+                return View();
+            }
+
+            var savings = await _savingsService.GetUserSavingsAsync(userEmail);
+            ViewBag.MonthlyEarnings = savings?.Amount ?? 0;
+
             return View();
         }
-
-         [HttpGet]
+        [HttpGet]
         public async Task<IActionResult> GetSavings()
         {
             try
