@@ -7,23 +7,27 @@ namespace MoneyWise.Services
     public class SupabaseService
     {
         private readonly HttpClient _httpClient;
-        private const string SupabaseUrl = "https://gzkgebvtemfidnwneqqt.supabase.co";
-        private const string SupabaseApiKey = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imd6a2dlYnZ0ZW1maWRud25lcXF0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTE5NTQ3NTIsImV4cCI6MjA2NzUzMDc1Mn0.YysxMOrj_Rv3m9VLqQk9BFPOQOY9yhJNIBV8-jwlxYA";
+        private readonly string _supabaseUrl;
+        private readonly string _supabaseApiKey;
 
-        public SupabaseService()
+        public SupabaseService(IConfiguration configuration)
         {
+            _supabaseUrl = configuration["Authentication:Supabase:Url"]!;
+            _supabaseApiKey = configuration["Authentication:Supabase:ApiKey"]!;
+
             _httpClient = new HttpClient
             {
-                BaseAddress = new Uri(SupabaseUrl)
+                BaseAddress = new Uri(_supabaseUrl)
             };
-            _httpClient.DefaultRequestHeaders.Add("apikey", SupabaseApiKey);
-            _httpClient.DefaultRequestHeaders.Add("Authorization", $"Bearer {SupabaseApiKey}");
+            _httpClient.DefaultRequestHeaders.Add("apikey", _supabaseApiKey);
+            _httpClient.DefaultRequestHeaders.Add("Authorization", $"Bearer {_supabaseApiKey}");
             _httpClient.DefaultRequestHeaders.Accept.Clear();
-            _httpClient.DefaultRequestHeaders.Accept.Add(new System.Net.Http.Headers.MediaTypeWithQualityHeaderValue("application/json"));
-            
-            // Add debugging
-            Console.WriteLine($"Supabase URL: {SupabaseUrl}");
-            Console.WriteLine($"Supabase API Key: {SupabaseApiKey.Substring(0, 10)}...");
+            _httpClient.DefaultRequestHeaders.Accept.Add(
+                new System.Net.Http.Headers.MediaTypeWithQualityHeaderValue("application/json"));
+
+            // Debug logs
+            Console.WriteLine($"Supabase URL: {_supabaseUrl}");
+            Console.WriteLine($"Supabase API Key: {_supabaseApiKey.Substring(0, 10)}...");
         }
 
         public async Task<List<Users>> GetAllUsersAsync()

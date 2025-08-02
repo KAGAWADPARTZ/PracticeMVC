@@ -2,52 +2,57 @@
 using Microsoft.AspNetCore.Authentication.Cookies;
 using MoneyWise.Services;
 using System.Security.Claims;
-using System.Xml.Linq;
 using MoneyWise.Models;
 using Microsoft.EntityFrameworkCore;
 
 var builder = WebApplication.CreateBuilder(args);
 
-var connectionString = builder.Configuration.GetConnectionString("DefaultConnection");
-// builder.Services.AddDbContext<AppDbContext>(options =>
-//     options.UseNpgsql(connectionString)); // Use UseSqlServer for SQL Server
-
-// Load appsettings.json, secrets, env vars, etc.
+// ✅ Load secrets from environment/user-secrets/appsettings.json
 builder.Configuration
     .AddJsonFile("appsettings.json", optional: false, reloadOnChange: true)
     .AddJsonFile($"appsettings.{builder.Environment.EnvironmentName}.json", optional: true)
     .AddEnvironmentVariables()
-    .AddUserSecrets<Program>(); // Optional, for dev
+    .AddUserSecrets<Program>(); // Only needed during development
+
+// ✅ Use Supabase connection via environment variable
+var supabaseUrl = builder.Configuration["Authentication:Supabase:Url"];
+var supabaseApiKey = builder.Configuration["Authentication:Supabase:ApiKey"];
+if (string.IsNullOrEmpty(supabaseUrl) || string.IsNullOrEmpty(supabaseApiKey))
+{
+    throw new InvalidOperationException("Supabase credentials are not configured.");
+}
+
+// ✅ Optionally use DB connection string from secrets
+var connectionString = builder.Configuration.GetConnectionString("DefaultConnection");
+builder.Services.AddDbContext<AppDbContext>(options =>
+    options.UseNpgsql(connectionString)); // Or UseSqlServer, etc.
 
 builder.Services.AddControllersWithViews();
 
-//  Required to support session state
+// ✅ Session Setup
 builder.Services.AddDistributedMemoryCache();
-
 builder.Services.AddSession(options =>
 {
     options.IdleTimeout = TimeSpan.FromHours(1);
     options.Cookie.HttpOnly = true;
-    options.Cookie.IsEssential = true; // Make the session cookie essential
+    options.Cookie.IsEssential = true;
 });
 
-
+// ✅ Cookie Auth Setup
 builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationScheme)
     .AddCookie(options =>
     {
         options.LoginPath = "/Login/Index";
         options.ExpireTimeSpan = TimeSpan.FromHours(1);
-        options.SlidingExpiration = false; // Optional: renew the cookie on each request
+        options.SlidingExpiration = false;
         options.Events = new CookieAuthenticationEvents
         {
             OnValidatePrincipal = async context =>
             {
                 var expiresUtc = context.Properties.ExpiresUtc;
                 var currentUtc = DateTimeOffset.UtcNow;
-
                 if (expiresUtc.HasValue && expiresUtc.Value < currentUtc)
                 {
-                    // Cookie is expired - sign out
                     context.RejectPrincipal();
                     await context.HttpContext.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme);
                 }
@@ -62,8 +67,7 @@ builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationSc
 
 builder.Services.AddHttpContextAccessor();
 builder.Services.AddScoped<LoginService>();
-// builder.Services.AddSingleton<MoneyWise.Services.DatabaseService>();
-builder.Services.AddSingleton<SupabaseService>();
+builder.Services.AddSingleton<SupabaseService>(); // will use IConfiguration internally
 builder.Services.AddScoped<TransactionService>();
 builder.Services.AddScoped<UserRepository>();
 builder.Services.AddScoped<FacebookAuthService>();
@@ -72,11 +76,10 @@ builder.Services.AddScoped<SavingsCalculatorService>();
 
 var app = builder.Build();
 
-// Configure the HTTP request pipeline.
+// Middleware & routing
 if (!app.Environment.IsDevelopment())
 {
     app.UseExceptionHandler("/Home/Error");
-    // The default HSTS value is 30 days. You may want to change this for production scenarios, see https://aka.ms/aspnetcore-hsts.
     app.UseHsts();
 }
 
@@ -85,7 +88,7 @@ app.UseStaticFiles();
 app.UseRouting();
 app.UseSession();
 
-//cookies and session middleware
+// Cookie/session consistency check
 app.Use(async (context, next) =>
 {
     var isAuthenticated = context.User.Identity?.IsAuthenticated ?? false;
@@ -109,5 +112,3 @@ app.MapControllerRoute(
     pattern: "{controller=Login}/{action=Index}/{id?}");
 
 app.Run();
-
-

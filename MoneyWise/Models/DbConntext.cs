@@ -10,7 +10,6 @@ namespace MoneyWise.Models
             : base(options)
         {
         }
-        
         public DbSet<Users> Users { get; set; }
         public DbSet<Transaction> Transactions { get; set; }
         public DbSet<Savings> Savings { get; set; }
