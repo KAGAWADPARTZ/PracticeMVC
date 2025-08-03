@@ -102,21 +102,8 @@ namespace MoneyWise.Controllers
                 return Json(new { success = false, message = "An error occurred while updating savings" });
             }
         }
+       
     }
 
-        // [HttpPost]
-        // public async Task<IActionResult> SaveTransaction([FromBody] TransactionRequest request)
-        // {
-        //     var userEmail = User.FindFirst(ClaimTypes.Email)?.Value;
-        //     var result = await _transactionService.SaveUserTransactionAsync(userEmail, request);
-            
-        //     return Json(new { success = result.success, message = result.message });
-        // }
-
-        // [ResponseCache(Duration = 0, Location = ResponseCacheLocation.None, NoStore = true)]
-        // public IActionResult Error()
-        // {
-        //     return View(new ErrorViewModel { RequestId = Activity.Current?.Id ?? HttpContext.TraceIdentifier });
-        // }
 }
 

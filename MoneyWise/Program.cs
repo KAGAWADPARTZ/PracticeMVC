@@ -7,14 +7,14 @@ using Microsoft.EntityFrameworkCore;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// ✅ Load secrets from environment/user-secrets/appsettings.json
+//  Load secrets from environment/user-secrets/appsettings.json
 builder.Configuration
     .AddJsonFile("appsettings.json", optional: false, reloadOnChange: true)
     .AddJsonFile($"appsettings.{builder.Environment.EnvironmentName}.json", optional: true)
     .AddEnvironmentVariables()
     .AddUserSecrets<Program>(); // Only needed during development
 
-// ✅ Use Supabase connection via environment variable
+//  Use Supabase connection via environment variable
 var supabaseUrl = builder.Configuration["Authentication:Supabase:Url"];
 var supabaseApiKey = builder.Configuration["Authentication:Supabase:ApiKey"];
 if (string.IsNullOrEmpty(supabaseUrl) || string.IsNullOrEmpty(supabaseApiKey))
@@ -106,6 +106,8 @@ app.Use(async (context, next) =>
 
 app.UseAuthentication();
 app.UseAuthorization();
+
+app.UseStatusCodePagesWithReExecute("/Error/{0}");
 
 app.MapControllerRoute(
     name: "default",
