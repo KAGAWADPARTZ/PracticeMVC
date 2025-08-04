@@ -137,6 +137,34 @@ namespace MoneyWise.Services
 
             return totalAnnualEarnings;
         }
+        public async Task<Dictionary<string, decimal>> GetMonthlyEarningsAsync(string userEmail)
+        {
+            var users = await _userRepository.GetAllUsers();
+            var user = users.FirstOrDefault(u => u.Email == userEmail);
+            if (user == null) return new Dictionary<string, decimal>();
+
+            var transactions = await GetUserTransactionsAsync(user.UserID);
+            var currentYear = DateTime.UtcNow.Year;
+
+            var monthlyTotals = transactions
+                .Where(t => t.Amount > 0 && t.created_at?.Year == currentYear)
+                .GroupBy(t => t.created_at!.Value.Month)
+                .ToDictionary(
+                    g => new DateTime(currentYear, g.Key, 1).ToString("MMMM"),
+                    g => g.Sum(t => t.Amount)
+                );
+
+            // Ensure all 12 months are represented (even if 0)
+            var result = new Dictionary<string, decimal>();
+            for (int month = 1; month <= 12; month++)
+            {
+                var monthName = new DateTime(currentYear, month, 1).ToString("MMMM");
+                result[monthName] = monthlyTotals.ContainsKey(monthName) ? monthlyTotals[monthName] : 0;
+            }
+
+            return result;
+        }
+
 
     }
 

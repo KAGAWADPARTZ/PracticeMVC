@@ -102,7 +102,18 @@ namespace MoneyWise.Controllers
                 return Json(new { success = false, message = "An error occurred while updating savings" });
             }
         }
-       
+
+        [HttpGet]
+        public async Task<IActionResult> GetMonthlyEarnings()
+        {
+            var userEmail = User.FindFirst(ClaimTypes.Email)?.Value;
+            if (string.IsNullOrEmpty(userEmail))
+                return Json(new { success = false, message = "Unauthorized" });
+
+            var data = await _calculatorService.GetMonthlyEarningsAsync(userEmail);
+            return Json(new { success = true, data });
+        }
+
     }
 
 }

@@ -99,7 +99,7 @@ namespace MoneyWise.Services
                     return (false, "Failed to save transaction");
                 }
             }
-            catch (Exception ex)
+            catch (Exception)
             {
                 return (false, "An error occurred while saving the transaction");
             }
