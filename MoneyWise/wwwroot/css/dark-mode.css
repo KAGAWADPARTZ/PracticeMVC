@@ -29,3 +29,33 @@ body.dark-mode {
         background-color: #1e1e2f !important;
         color: #ffffff !important;
     }
+
+        /* Dark mode sidebar overrides */
+        body.dark-mode .sidebar {
+            background: #1b1b2e !important; /* dark solid background */
+        }
+
+            body.dark-mode .sidebar .nav-item .nav-link {
+                color: #ffffff !important;
+            }
+
+                body.dark-mode .sidebar .nav-item .nav-link i {
+                    color: #ffffff !important;
+                }
+
+            body.dark-mode .sidebar .nav-item.active .nav-link {
+                background-color: #2c2c3c !important;
+                color: #ffffff !important;
+            }
+
+        body.dark-mode .collapse-inner {
+            background-color: #2c2c3c !important;
+        }
+
+        body.dark-mode .collapse-item {
+            color: #ffffff !important;
+        }
+
+            body.dark-mode .collapse-item:hover {
+                background-color: #3a3a4f !important;
+            }
