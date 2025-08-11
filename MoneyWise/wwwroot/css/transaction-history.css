@@ -1,0 +1,236 @@
+/* Transaction History Custom Styles */
+
+/* Transaction table styling */
+#transactionTable {
+    border-radius: 8px;
+    overflow: hidden;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+#transactionTable thead th {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    border: none;
+    font-weight: 600;
+    text-transform: uppercase;
+    font-size: 0.85rem;
+    letter-spacing: 0.5px;
+    padding: 15px 10px;
+}
+
+#transactionTable tbody tr {
+    transition: all 0.3s ease;
+}
+
+#transactionTable tbody tr:hover {
+    background-color: #f8f9fc;
+    transform: translateY(-1px);
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+}
+
+#transactionTable tbody td {
+    padding: 12px 10px;
+    vertical-align: middle;
+    border-color: #e3e6f0;
+}
+
+/* Amount styling */
+.amount-positive {
+    color: #1cc88a;
+    font-weight: 600;
+}
+
+.amount-negative {
+    color: #e74a3b;
+    font-weight: 600;
+}
+
+/* Badge styling */
+.badge {
+    font-size: 0.75rem;
+    padding: 0.5em 0.75em;
+    border-radius: 20px;
+}
+
+.badge-success {
+    background: linear-gradient(135deg, #1cc88a 0%, #13855c 100%);
+}
+
+.badge-danger {
+    background: linear-gradient(135deg, #e74a3b 0%, #be2617 100%);
+}
+
+/* Summary cards enhancement */
+.card.border-left-primary,
+.card.border-left-success,
+.card.border-left-danger,
+.card.border-left-info {
+    transition: all 0.3s ease;
+}
+
+.card.border-left-primary:hover,
+.card.border-left-success:hover,
+.card.border-left-danger:hover,
+.card.border-left-info:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 8px 25px rgba(0,0,0,0.15);
+}
+
+/* Action buttons styling */
+.btn-info {
+    background: linear-gradient(135deg, #36b9cc 0%, #258391 100%);
+    border: none;
+    border-radius: 20px;
+    padding: 0.375rem 0.75rem;
+    transition: all 0.3s ease;
+}
+
+.btn-info:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(54, 185, 204, 0.4);
+}
+
+/* Modal enhancements */
+#transactionModal .modal-content {
+    border-radius: 15px;
+    border: none;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+}
+
+#transactionModal .modal-header {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    border-radius: 15px 15px 0 0;
+}
+
+#transactionModal .modal-header .close {
+    color: white;
+    opacity: 0.8;
+}
+
+#transactionModal .modal-header .close:hover {
+    opacity: 1;
+}
+
+/* Empty state styling */
+.empty-state {
+    padding: 3rem 1rem;
+    text-align: center;
+}
+
+.empty-state i {
+    color: #d1d3e2;
+    margin-bottom: 1rem;
+}
+
+.empty-state h5 {
+    color: #5a5c69;
+    margin-bottom: 0.5rem;
+}
+
+.empty-state p {
+    color: #858796;
+    margin-bottom: 1.5rem;
+}
+
+/* Loading spinner */
+.spinner-border-sm {
+    width: 1rem;
+    height: 1rem;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+    #transactionTable {
+        font-size: 0.875rem;
+    }
+    
+    #transactionTable thead th {
+        padding: 10px 5px;
+        font-size: 0.75rem;
+    }
+    
+    #transactionTable tbody td {
+        padding: 8px 5px;
+    }
+    
+    .card-body {
+        padding: 1rem;
+    }
+    
+    .btn-sm {
+        padding: 0.25rem 0.5rem;
+        font-size: 0.75rem;
+    }
+}
+
+/* Print styles */
+@media print {
+    .btn, .dropdown, .sidebar, .topbar {
+        display: none !important;
+    }
+    
+    .card {
+        border: 1px solid #000 !important;
+        box-shadow: none !important;
+    }
+    
+    #transactionTable {
+        box-shadow: none !important;
+    }
+    
+    #transactionTable thead th {
+        background: #f8f9fa !important;
+        color: #000 !important;
+        border: 1px solid #000 !important;
+    }
+}
+
+/* Animation classes */
+.fade-in {
+    animation: fadeIn 0.5s ease-in;
+}
+
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.slide-in {
+    animation: slideIn 0.3s ease-out;
+}
+
+@keyframes slideIn {
+    from {
+        transform: translateX(-100%);
+    }
+    to {
+        transform: translateX(0);
+    }
+}
+
+/* Custom scrollbar for table */
+.table-responsive::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+}
+
+.table-responsive::-webkit-scrollbar-track {
+    background: #f1f1f1;
+    border-radius: 4px;
+}
+
+.table-responsive::-webkit-scrollbar-thumb {
+    background: #c1c1c1;
+    border-radius: 4px;
+}
+
+.table-responsive::-webkit-scrollbar-thumb:hover {
+    background: #a8a8a8;
+}

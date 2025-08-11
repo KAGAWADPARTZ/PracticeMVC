@@ -24,20 +24,43 @@ namespace MoneyWise.Services
             _userRepository = userRepository;
         }
 
-        public async Task<List<Transaction>> GetUserTransactionsAsync(int userId)
+        public async Task<List<Transaction>> GetUserTransactionsAsync(string userEmail)
         {
-            var response = await _httpClient.GetAsync($"/rest/v1/Transactions?UserID=eq.{userId}&select=*");
-            response.EnsureSuccessStatusCode();
-            var json = await response.Content.ReadAsStringAsync();
-            return JsonSerializer.Deserialize<List<Transaction>>(json) ?? new List<Transaction>();
+            try
+            {
+                // Get user from database first
+                var users = await _userRepository.GetAllUsers();
+                var user = users.FirstOrDefault(u => u.Email == userEmail);
+                
+                if (user == null)
+                {
+                    return new List<Transaction>();
+                }
+
+                var response = await _httpClient.GetAsync($"/rest/v1/Transactions?UserID=eq.{user.UserID.GetHashCode()}&select=*");
+                response.EnsureSuccessStatusCode();
+                var json = await response.Content.ReadAsStringAsync();
+                return JsonSerializer.Deserialize<List<Transaction>>(json) ?? new List<Transaction>();
+            }
+            catch (Exception)
+            {
+                return new List<Transaction>();
+            }
         }
 
         public async Task<Transaction?> GetTransactionByIdAsync(int transactionId)
         {
-            var response = await _httpClient.GetAsync($"/rest/v1/Transactions?TransactionID=eq.{transactionId}&select=*");
-            response.EnsureSuccessStatusCode();
-            var json = await response.Content.ReadAsStringAsync();
-            return JsonSerializer.Deserialize<List<Transaction>>(json)?.FirstOrDefault();
+            try
+            {
+                var response = await _httpClient.GetAsync($"/rest/v1/Transactions?TransactionID=eq.{transactionId}&select=*");
+                response.EnsureSuccessStatusCode();
+                var json = await response.Content.ReadAsStringAsync();
+                return JsonSerializer.Deserialize<List<Transaction>>(json)?.FirstOrDefault();
+            }
+            catch (Exception)
+            {
+                return null;
+            }
         }
 
         public async Task<bool> CreateTransactionAsync(Transaction transaction)
