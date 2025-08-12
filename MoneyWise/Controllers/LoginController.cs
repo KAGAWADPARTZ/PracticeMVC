@@ -4,14 +4,11 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using MoneyWise.Models;
 using MoneyWise.Services;
-using System.Security.Claims;
 
 namespace MoneyWise.Controllers
 {
-  
     public class LoginController : Controller
     {
-
         private readonly ILogger<LoginController> _logger;
         private readonly LoginService _loginService;
         private readonly FacebookAuthService _facebookAuthService;
@@ -23,7 +20,6 @@ namespace MoneyWise.Controllers
             _facebookAuthService = facebookAuthService;
         }
 
-
         [HttpGet]
         public async Task<IActionResult> Index()
         {
@@ -33,19 +29,17 @@ namespace MoneyWise.Controllers
             if (isAuthenticated && string.IsNullOrEmpty(sessionName))
             {
                 await HttpContext.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme);
-                return View(); // Stay on login page
+                return View();
             }
 
             if (isAuthenticated)
             {
-
                 return RedirectToAction("Index", "Home");
             }
 
             return View();
         }
 
-        // Redirect to Google login
         [HttpGet]
         public IActionResult GoogleLogin()
         {
@@ -54,12 +48,11 @@ namespace MoneyWise.Controllers
             {
                 RedirectUri = redirectUrl,
                 IsPersistent = true,
-                ExpiresUtc = DateTimeOffset.UtcNow.AddSeconds(60) // Set cookie expiration
+                ExpiresUtc = DateTimeOffset.UtcNow.AddSeconds(60)
             };
             return Challenge(properties, "Google");
         }
 
-        // Callback after Google login
         [HttpGet]
         public async Task<IActionResult> GoogleResponse()
         {
@@ -68,7 +61,6 @@ namespace MoneyWise.Controllers
             return RedirectToAction(result ? "Index" : "Index", "Home");
         }
 
-        // Logout
         [HttpGet]
         public async Task<IActionResult> Logout()
         {
@@ -79,9 +71,16 @@ namespace MoneyWise.Controllers
         [HttpPost]
         public async Task<IActionResult> FacebookCallback([FromBody] FacebookTokenModel model)
         {
-            var result = await _facebookAuthService.HandleFacebookLoginAsync(model);
-            return Json(new { success = result });
+            try
+            {
+                var result = await _facebookAuthService.HandleFacebookLoginAsync(model);
+                return Json(new { success = result });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error during Facebook callback");
+                return Json(new { success = false, message = "An error occurred during Facebook authentication" });
+            }
         }
-
     }
 }

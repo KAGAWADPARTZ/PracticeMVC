@@ -1,30 +1,25 @@
-using System.Diagnostics;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using MoneyWise.Models;
 using MoneyWise.Services;
-using System.Security.Claims;
 
 namespace MoneyWise.Controllers
 {
-    [Authorize]
-    public class HomeController : Controller
+    public class HomeController : BaseController
     {
-        private readonly ILogger<HomeController> _logger;
-        // private readonly TransactionService _transactionService;
         private readonly SavingsService _savingsService;
         private readonly SavingsCalculatorService _calculatorService;
 
-        public HomeController(ILogger<HomeController> logger, SavingsService savingsService, SavingsCalculatorService calculatorService)
+        public HomeController(ILogger<HomeController> logger, SavingsService savingsService, SavingsCalculatorService calculatorService) 
+            : base(logger)
         {
-            _logger = logger;
             _savingsService = savingsService;
             _calculatorService = calculatorService;
         }
 
         public async Task<IActionResult> Index()
         {
-            var userEmail = User.FindFirst(ClaimTypes.Email)?.Value;
+            var userEmail = GetCurrentUserEmail();
 
             if (string.IsNullOrEmpty(userEmail))
             {
@@ -47,34 +42,21 @@ namespace MoneyWise.Controllers
         {
             try
             {
-                var userEmail = User.FindFirst(ClaimTypes.Email)?.Value;
-                if (string.IsNullOrEmpty(userEmail))
-                {
-                    return Json(new { success = false, message = "User not authenticated" });
-                }
+                var authResult = ValidateAuthentication();
+                if (authResult != null) return authResult;
                
-                var savings = await _savingsService.GetUserSavingsAsync(userEmail);
+                var savings = await _savingsService.GetUserSavingsAsync(GetCurrentUserEmail()!);
                 
                 if (savings != null)
                 {
-                    return Json(new { 
-                        success = true, 
-                        savingsAmount = savings.Amount,
-                    });
+                    return JsonSuccess(new { savingsAmount = savings.Amount });
                 }
-                else
-                {
-                    return Json(new { 
-                        success = true, 
-                        savingsAmount = 0,
-                        savingsGoal = ""
-                    });
-                }
+                
+                return JsonSuccess(new { savingsAmount = 0, savingsGoal = "" });
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error getting savings");
-                return Json(new { success = false, message = "An error occurred while getting savings" });
+                return HandleException(ex, "getting savings");
             }
         }
 
@@ -83,38 +65,38 @@ namespace MoneyWise.Controllers
         {
             try
             {
-                var userEmail = User.FindFirst(ClaimTypes.Email)?.Value;
+                var authResult = ValidateAuthentication();
+                if (authResult != null) return authResult;
 
-                 _logger.LogInformation("User email from claims: {UserEmail}", userEmail);
-                if (string.IsNullOrEmpty(userEmail))
-                {
-                    return Json(new { success = false, message = "User not authenticated" });
-                }
-
-                var result = await _savingsService.SaveUserSavingsAsync(userEmail, request);
+                _logger.LogInformation("User email from claims: {UserEmail}", GetCurrentUserEmail());
                 
-                 _logger.LogInformation("SaveUserSavingsAsync result: {Success}, {Message}", result.success, result.message);
+                var result = await _savingsService.SaveUserSavingsAsync(GetCurrentUserEmail()!, request);
+                
+                _logger.LogInformation("SaveUserSavingsAsync result: {Success}, {Message}", result.success, result.message);
                 return Json(new { success = result.success, message = result.message });
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error updating savings");
-                return Json(new { success = false, message = "An error occurred while updating savings" });
+                return HandleException(ex, "updating savings");
             }
         }
 
         [HttpGet]
         public async Task<IActionResult> GetMonthlyEarnings()
         {
-            var userEmail = User.FindFirst(ClaimTypes.Email)?.Value;
-            if (string.IsNullOrEmpty(userEmail))
-                return Json(new { success = false, message = "Unauthorized" });
+            try
+            {
+                var authResult = ValidateAuthentication();
+                if (authResult != null) return authResult;
 
-            var data = await _calculatorService.GetMonthlyEarningsAsync(userEmail);
-            return Json(new { success = true, data });
+                var data = await _calculatorService.GetMonthlyEarningsAsync(GetCurrentUserEmail()!);
+                return JsonSuccess(data);
+            }
+            catch (Exception ex)
+            {
+                return HandleException(ex, "getting monthly earnings");
+            }
         }
-
     }
-
 }
 

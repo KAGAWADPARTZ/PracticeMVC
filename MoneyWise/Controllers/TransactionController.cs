@@ -1,27 +1,24 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using MoneyWise.Services;
-using System.Security.Claims;
 
 namespace MoneyWise.Controllers
 {
-    [Authorize]
-    public class TransactionController : Controller
+    public class TransactionController : BaseController
     {
         private readonly TransactionService _transactionService;
-        private readonly ILogger<TransactionController> _logger;
 
         public TransactionController(TransactionService transactionService, ILogger<TransactionController> logger)
+            : base(logger)
         {
             _transactionService = transactionService;
-            _logger = logger;
         }
 
         public async Task<IActionResult> History()
         {
             try
             {
-                var userEmail = User.FindFirst(ClaimTypes.Email)?.Value;
+                var userEmail = GetCurrentUserEmail();
                 if (string.IsNullOrEmpty(userEmail))
                 {
                     return RedirectToAction("Index", "Home");
@@ -43,19 +40,15 @@ namespace MoneyWise.Controllers
         {
             try
             {
-                var userEmail = User.FindFirst(ClaimTypes.Email)?.Value;
-                if (string.IsNullOrEmpty(userEmail))
-                {
-                    return Json(new { success = false, message = "User not authenticated" });
-                }
+                var authResult = ValidateAuthentication();
+                if (authResult != null) return authResult;
 
-                var transactions = await _transactionService.GetUserTransactionsAsync(userEmail);
-                return Json(new { success = true, transactions });
+                var transactions = await _transactionService.GetUserTransactionsAsync(GetCurrentUserEmail()!);
+                return JsonSuccess(transactions);
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error getting transaction history");
-                return Json(new { success = false, message = "An error occurred while retrieving transaction history" });
+                return HandleException(ex, "retrieving transaction history");
             }
         }
     }
