@@ -9,8 +9,8 @@ namespace MoneyWise.Controllers
     {
         private readonly TransactionService _transactionService;
 
-        public TransactionController(TransactionService transactionService, ILogger<TransactionController> logger)
-            : base(logger)
+        public TransactionController(TransactionService transactionService, ILogger<TransactionController> logger, LoginService loginService)
+            : base(logger, loginService)
         {
             _transactionService = transactionService;
         }
@@ -19,6 +19,13 @@ namespace MoneyWise.Controllers
         {
             try
             {
+                // Validate session before proceeding
+                var sessionValid = await ValidateSessionAsync();
+                if (!sessionValid)
+                {
+                    return RedirectToAction("Index", "Login");
+                }
+
                 var userEmail = GetCurrentUserEmail();
                 if (string.IsNullOrEmpty(userEmail))
                 {
@@ -41,6 +48,9 @@ namespace MoneyWise.Controllers
         {
             try
             {
+                var sessionResponse = await ValidateSessionAndReturnResponseAsync();
+                if (sessionResponse != null) return sessionResponse;
+
                 var authResult = ValidateAuthentication();
                 if (authResult != null) return authResult;
 
@@ -58,6 +68,9 @@ namespace MoneyWise.Controllers
         {
             try
             {
+                var sessionResponse = await ValidateSessionAndReturnResponseAsync();
+                if (sessionResponse != null) return sessionResponse;
+
                 var authResult = ValidateAuthentication();
                 if (authResult != null) return authResult;
 
@@ -75,6 +88,9 @@ namespace MoneyWise.Controllers
         {
             try
             {
+                var sessionResponse = await ValidateSessionAndReturnResponseAsync();
+                if (sessionResponse != null) return sessionResponse;
+
                 var authResult = ValidateAuthentication();
                 if (authResult != null) return authResult;
 
@@ -92,6 +108,9 @@ namespace MoneyWise.Controllers
         {
             try
             {
+                var sessionResponse = await ValidateSessionAndReturnResponseAsync();
+                if (sessionResponse != null) return sessionResponse;
+
                 var authResult = ValidateAuthentication();
                 if (authResult != null) return authResult;
 
@@ -109,6 +128,9 @@ namespace MoneyWise.Controllers
         {
             try
             {
+                var sessionResponse = await ValidateSessionAndReturnResponseAsync();
+                if (sessionResponse != null) return sessionResponse;
+
                 var authResult = ValidateAuthentication();
                 if (authResult != null) return authResult;
 
@@ -126,6 +148,9 @@ namespace MoneyWise.Controllers
         {
             try
             {
+                var sessionResponse = await ValidateSessionAndReturnResponseAsync();
+                if (sessionResponse != null) return sessionResponse;
+
                 var authResult = ValidateAuthentication();
                 if (authResult != null) return authResult;
 
@@ -143,6 +168,9 @@ namespace MoneyWise.Controllers
         {
             try
             {
+                var sessionResponse = await ValidateSessionAndReturnResponseAsync();
+                if (sessionResponse != null) return sessionResponse;
+
                 var authResult = ValidateAuthentication();
                 if (authResult != null) return authResult;
 
@@ -160,6 +188,9 @@ namespace MoneyWise.Controllers
         {
             try
             {
+                var sessionResponse = await ValidateSessionAndReturnResponseAsync();
+                if (sessionResponse != null) return sessionResponse;
+
                 var authResult = ValidateAuthentication();
                 if (authResult != null) return authResult;
 
@@ -181,6 +212,9 @@ namespace MoneyWise.Controllers
         {
             try
             {
+                var sessionResponse = await ValidateSessionAndReturnResponseAsync();
+                if (sessionResponse != null) return sessionResponse;
+
                 var authResult = ValidateAuthentication();
                 if (authResult != null) return authResult;
 

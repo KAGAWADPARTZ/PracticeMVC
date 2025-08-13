@@ -10,8 +10,8 @@ namespace MoneyWise.Controllers
         private readonly SavingsService _savingsService;
         private readonly SavingsCalculatorService _calculatorService;
 
-        public HomeController(ILogger<HomeController> logger, SavingsService savingsService, SavingsCalculatorService calculatorService) 
-            : base(logger)
+        public HomeController(ILogger<HomeController> logger, LoginService loginService, SavingsService savingsService, SavingsCalculatorService calculatorService) 
+            : base(logger, loginService)
         {
             _savingsService = savingsService;
             _calculatorService = calculatorService;
@@ -19,6 +19,13 @@ namespace MoneyWise.Controllers
 
         public async Task<IActionResult> Index()
         {
+            // Validate session before proceeding
+            var sessionValid = await ValidateSessionAsync();
+            if (!sessionValid)
+            {
+                return RedirectToAction("Index", "Login");
+            }
+
             var userEmail = GetCurrentUserEmail();
 
             if (string.IsNullOrEmpty(userEmail))
@@ -34,6 +41,10 @@ namespace MoneyWise.Controllers
             ViewBag.MonthlyEarnings = savings?.Amount ?? 0;
             ViewBag.AnnualEarnings = annualEarnings;
 
+            // Add session info to ViewBag for display
+            ViewBag.RemainingSessionTime = GetRemainingSessionTime();
+            ViewBag.IsSessionExpiringSoon = IsSessionExpiringSoon();
+
             return View();
         }
 
@@ -42,6 +53,9 @@ namespace MoneyWise.Controllers
         {
             try
             {
+                var sessionResponse = await ValidateSessionAndReturnResponseAsync();
+                if (sessionResponse != null) return sessionResponse;
+
                 var authResult = ValidateAuthentication();
                 if (authResult != null) return authResult;
                
@@ -65,6 +79,9 @@ namespace MoneyWise.Controllers
         {
             try
             {
+                var sessionResponse = await ValidateSessionAndReturnResponseAsync();
+                if (sessionResponse != null) return sessionResponse;
+
                 var authResult = ValidateAuthentication();
                 if (authResult != null) return authResult;
 
@@ -86,6 +103,9 @@ namespace MoneyWise.Controllers
         {
             try
             {
+                var sessionResponse = await ValidateSessionAndReturnResponseAsync();
+                if (sessionResponse != null) return sessionResponse;
+
                 var authResult = ValidateAuthentication();
                 if (authResult != null) return authResult;
 
@@ -95,6 +115,30 @@ namespace MoneyWise.Controllers
             catch (Exception ex)
             {
                 return HandleException(ex, "getting monthly earnings");
+            }
+        }
+
+        [HttpGet]
+        public async Task<IActionResult> GetSessionInfo()
+        {
+            try
+            {
+                var sessionResponse = await ValidateSessionAndReturnResponseAsync();
+                if (sessionResponse != null) return sessionResponse;
+
+                var remainingTime = GetRemainingSessionTime();
+                var isExpiringSoon = IsSessionExpiringSoon();
+
+                return JsonSuccess(new 
+                { 
+                    remainingTime = remainingTime.TotalMinutes,
+                    isExpiringSoon = isExpiringSoon,
+                    formattedTime = $"{remainingTime.Hours:D2}:{remainingTime.Minutes:D2}:{remainingTime.Seconds:D2}"
+                });
+            }
+            catch (Exception ex)
+            {
+                return HandleException(ex, "getting session info");
             }
         }
     }

@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using System.Security.Claims;
+using MoneyWise.Services;
 
 namespace MoneyWise.Controllers
 {
@@ -8,10 +9,34 @@ namespace MoneyWise.Controllers
     public abstract class BaseController : Controller
     {
         protected readonly ILogger _logger;
+        protected readonly LoginService _loginService;
 
-        protected BaseController(ILogger logger)
+        protected BaseController(ILogger logger, LoginService loginService)
         {
             _logger = logger;
+            _loginService = loginService;
+        }
+
+        /// <summary>
+        /// Validates session before any action execution
+        /// </summary>
+        protected async Task<bool> ValidateSessionAsync()
+        {
+            try
+            {
+                var isValid = await _loginService.ValidateSessionAsync();
+                if (!isValid)
+                {
+                    _logger.LogWarning("Session validation failed, user will be redirected to login");
+                    return false;
+                }
+                return true;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error during session validation");
+                return false;
+            }
         }
 
         /// <summary>
@@ -64,6 +89,15 @@ namespace MoneyWise.Controllers
         }
 
         /// <summary>
+        /// Creates a standardized JSON response for expired sessions
+        /// </summary>
+        /// <returns>JsonResult</returns>
+        protected JsonResult JsonSessionExpired()
+        {
+            return JsonError("Session has expired. Please log in again.");
+        }
+
+        /// <summary>
         /// Handles exceptions and returns appropriate JSON response
         /// </summary>
         /// <param name="ex">Exception that occurred</param>
@@ -86,6 +120,38 @@ namespace MoneyWise.Controllers
                 return JsonUnauthorized();
             }
             return null;
+        }
+
+        /// <summary>
+        /// Validates session and returns appropriate response if expired
+        /// </summary>
+        /// <returns>JsonResult if session expired, null if valid</returns>
+        protected async Task<JsonResult?> ValidateSessionAndReturnResponseAsync()
+        {
+            var isValid = await ValidateSessionAsync();
+            if (!isValid)
+            {
+                return JsonSessionExpired();
+            }
+            return null;
+        }
+
+        /// <summary>
+        /// Gets remaining session time for display purposes
+        /// </summary>
+        /// <returns>TimeSpan representing remaining session time</returns>
+        protected TimeSpan GetRemainingSessionTime()
+        {
+            return _loginService.GetRemainingSessionTime();
+        }
+
+        /// <summary>
+        /// Checks if session is about to expire soon
+        /// </summary>
+        /// <returns>True if session expires within 5 minutes</returns>
+        protected bool IsSessionExpiringSoon()
+        {
+            return _loginService.IsSessionExpiringSoon();
         }
     }
 }

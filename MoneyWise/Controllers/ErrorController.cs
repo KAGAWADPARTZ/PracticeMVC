@@ -13,10 +13,8 @@ namespace MoneyWise.Controllers
         [Route("Error/{code}")]
         public IActionResult GeneralError(int code)
         {
-            if (code == 404)
-                return RedirectToAction("Error404");
-
-            return View("GeneralError"); // Optional: create Views/Shared/GeneralError.cshtml
+            // Redirect all error codes to the 404 page
+            return RedirectToAction("Error404");
         }
     }
 }

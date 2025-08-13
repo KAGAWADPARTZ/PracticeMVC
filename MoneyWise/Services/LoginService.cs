@@ -9,11 +9,13 @@ namespace MoneyWise.Services
     {
         private readonly UserRepository _userRepository;
         private readonly IHttpContextAccessor _httpContextAccessor;
+        private readonly SessionValidationService _sessionValidationService;
 
-        public LoginService(UserRepository userRepository, IHttpContextAccessor httpContextAccessor)
+        public LoginService(UserRepository userRepository, IHttpContextAccessor httpContextAccessor, SessionValidationService sessionValidationService)
         {
             _userRepository = userRepository;
             _httpContextAccessor = httpContextAccessor;
+            _sessionValidationService = sessionValidationService;
         }
 
         public async Task<bool> HandleGoogleLoginAsync()
@@ -64,6 +66,9 @@ namespace MoneyWise.Services
 
             //  Set session
             context.Session.SetString("name", name ?? string.Empty);
+            
+            // Set session creation time for validation
+            _sessionValidationService.SetSessionCreated();
 
             //  Sign in
             await context.SignInAsync(
@@ -86,6 +91,10 @@ namespace MoneyWise.Services
             {
                 try
                 {
+                    // Clear session
+                    context.Session.Clear();
+                    
+                    // Sign out from authentication
                     await context.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme);
                 }
                 catch (Exception e)
@@ -97,6 +106,33 @@ namespace MoneyWise.Services
             {
                 Console.WriteLine("HttpContext is null. Unable to sign out.");
             }
+        }
+
+        /// <summary>
+        /// Validates the current session and forces logout if expired
+        /// </summary>
+        /// <returns>True if session is valid, false if expired</returns>
+        public async Task<bool> ValidateSessionAsync()
+        {
+            return await _sessionValidationService.ValidateSessionAsync();
+        }
+
+        /// <summary>
+        /// Gets remaining session time
+        /// </summary>
+        /// <returns>TimeSpan representing remaining session time</returns>
+        public TimeSpan GetRemainingSessionTime()
+        {
+            return _sessionValidationService.GetRemainingSessionTime();
+        }
+
+        /// <summary>
+        /// Checks if session is about to expire soon
+        /// </summary>
+        /// <returns>True if session expires within 5 minutes</returns>
+        public bool IsSessionExpiringSoon()
+        {
+            return _sessionValidationService.IsSessionExpiringSoon();
         }
     }
 

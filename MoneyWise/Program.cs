@@ -67,6 +67,7 @@ builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationSc
 
 builder.Services.AddHttpContextAccessor();
 builder.Services.AddScoped<LoginService>();
+builder.Services.AddScoped<SessionValidationService>();
 builder.Services.AddSingleton<SupabaseService>(); // will use IConfiguration internally
 builder.Services.AddScoped<TransactionService>();
 builder.Services.AddScoped<UserRepository>();
@@ -112,5 +113,13 @@ app.UseStatusCodePagesWithReExecute("/Error/{0}");
 app.MapControllerRoute(
     name: "default",
     pattern: "{controller=Login}/{action=Index}/{id?}");
+
+// Catch-all route for unmatched URLs - redirect to 404
+app.MapFallback(context =>
+{
+    context.Response.StatusCode = 404;
+    context.Response.Redirect("/Error/404");
+    return Task.CompletedTask;
+});
 
 app.Run();
