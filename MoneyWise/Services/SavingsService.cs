@@ -28,8 +28,29 @@ namespace MoneyWise.Services
                     return null;
                 }
 
-                // Get savings from Supabase
-                return await _supabaseService.GetSavingsByUserIdAsync(user.UserID);
+                // Get all transactions for the user
+                var allTransactions = await _supabaseService.GetTransactionsByUserIdAsync(user.UserID);
+                
+                if (allTransactions == null || !allTransactions.Any())
+                {
+                    return null;
+                }
+
+                // Calculate current balance from all transactions
+                var currentBalance = allTransactions.Sum(t => t.Amount);
+                
+                // Get the most recent transaction for metadata
+                var latestTransaction = allTransactions.OrderByDescending(t => t.created_at).First();
+                
+                // Return a summary object with the calculated balance
+                return new Savings
+                {
+                    TransactionID = latestTransaction.TransactionID,
+                    UserID = user.UserID,
+                    Amount = currentBalance,
+                    created_at = latestTransaction.created_at,
+                    updated_at = latestTransaction.updated_at
+                };
             }
             catch (Exception)
             {
@@ -76,48 +97,25 @@ namespace MoneyWise.Services
                 if (user == null)
                     return (false, $"User not found. Email: {userEmail}");
 
-                // Step 1: Get existing savings record
-                var existingSavings = await _supabaseService.GetSavingsByUserIdAsync(user.UserID);
-
-                if (existingSavings != null)
+                // Always create a new transaction record for each deposit/withdrawal
+                var newTransaction = new Savings
                 {
-                    // Step 2: Update the existing record
-                    existingSavings.Amount += request.Action == "deposit" ? request.SavingsAmount : -request.SavingsAmount;
-                    existingSavings.updated_at = DateTime.UtcNow;
+                    TransactionID = 0, // Let database auto-generate the primary key
+                    UserID = user.UserID,
+                    Amount = request.Action == "deposit" ? request.SavingsAmount : -request.SavingsAmount,
+                    created_at = DateTime.UtcNow
+                };
 
-                    var updateSuccess = await _supabaseService.UpdateSavingsAsync(existingSavings.TransactionID, existingSavings);
+                var createSuccess = await _supabaseService.CreateSavingsAsync(newTransaction);
 
-                    if (updateSuccess)
-                    {
-                        var actionText = request.Action == "deposit" ? "deposited" : "withdrawn";
-                        return (true, $"₱{request.SavingsAmount:F2} successfully {actionText}.");
-                    }
-                    else
-                    {
-                        return (false, "Failed to update savings.");
-                    }
+                if (createSuccess)
+                {
+                    var actionText = request.Action == "deposit" ? "deposited" : "withdrawn";
+                    return (true, $"₱{request.SavingsAmount:F2} successfully {actionText}.");
                 }
                 else
                 {
-                    // Step 3: Insert new savings record
-                    var newSavings = new Savings
-                    {
-                        UserID = user.UserID,
-                        Amount = request.Action == "deposit" ? request.SavingsAmount : -request.SavingsAmount,
-                        created_at = DateTime.UtcNow
-                    };
-
-                    var createSuccess = await _supabaseService.CreateSavingsAsync(newSavings);
-
-                    if (createSuccess)
-                    {
-                        var actionText = request.Action == "deposit" ? "deposited" : "withdrawn";
-                        return (true, $"₱{request.SavingsAmount:F2} successfully {actionText}.");
-                    }
-                    else
-                    {
-                        return (false, "Failed to create savings record.");
-                    }
+                    return (false, "Failed to create transaction record.");
                 }
             }
             catch (Exception ex)
@@ -125,7 +123,6 @@ namespace MoneyWise.Services
                 Console.WriteLine($"Exception in SaveUserSavingsAsync: {ex.Message}");
                 return (false, "An error occurred while processing the transaction");
             }
-
         }
 
     }

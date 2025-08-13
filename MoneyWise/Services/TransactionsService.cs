@@ -24,270 +24,38 @@ namespace MoneyWise.Services
             _userRepository = userRepository;
         }
 
-        public async Task<List<Transaction>> GetUserTransactionsAsync(string userEmail)
+        public async Task<List<Savings>> GetUserTransactionsAsync(string userEmail)
         {
             try
             {
-                var user = await GetUserByEmail(userEmail);
-                if (user == null) return new List<Transaction>();
-
-                var response = await _httpClient.GetAsync($"/rest/v1/Transactions?UserID=eq.{user.UserID.GetHashCode()}&select=*&order=created_at.desc");
-                response.EnsureSuccessStatusCode();
-                var json = await response.Content.ReadAsStringAsync();
-                return JsonSerializer.Deserialize<List<Transaction>>(json) ?? new List<Transaction>();
-            }
-            catch (Exception)
-            {
-                return new List<Transaction>();
-            }
-        }
-
-        /// <summary>
-        /// Gets comprehensive transaction history with filtering, pagination, and statistics
-        /// </summary>
-        public async Task<TransactionHistoryResponse> GetTransactionHistoryAsync(string userEmail, TransactionHistoryFilter? filter = null)
-        {
-            try
-            {
-                var user = await GetUserByEmail(userEmail);
-                if (user == null) return new TransactionHistoryResponse();
-
-                filter ??= new TransactionHistoryFilter();
-
-                // Build query parameters
-                var queryParams = new List<string>
-                {
-                    $"UserID=eq.{user.UserID.GetHashCode()}",
-                    "select=*"
-                };
-
-                // Add date filters
-                if (filter.StartDate.HasValue)
-                {
-                    queryParams.Add($"created_at=gte.{filter.StartDate.Value:yyyy-MM-dd}");
-                }
-                if (filter.EndDate.HasValue)
-                {
-                    queryParams.Add($"created_at=lte.{filter.EndDate.Value:yyyy-MM-dd}");
-                }
-
-                // Add amount filters
-                if (filter.MinAmount.HasValue)
-                {
-                    queryParams.Add($"Amount=gte.{filter.MinAmount.Value}");
-                }
-                if (filter.MaxAmount.HasValue)
-                {
-                    queryParams.Add($"Amount=lte.{filter.MaxAmount.Value}");
-                }
-
-                // Add category filter
-                if (!string.IsNullOrEmpty(filter.Category))
-                {
-                    queryParams.Add($"Category=eq.{filter.Category}");
-                }
-
-                // Add transaction type filter
-                if (!string.IsNullOrEmpty(filter.TransactionType))
-                {
-                    queryParams.Add($"TransactionType=eq.{filter.TransactionType}");
-                }
-
-                // Add sorting
-                var sortOrder = filter.SortOrder.ToLower() == "asc" ? "asc" : "desc";
-                queryParams.Add($"order={filter.SortBy}.{sortOrder}");
-
-                // Add pagination
-                var offset = (filter.Page - 1) * filter.PageSize;
-                queryParams.Add($"limit={filter.PageSize}");
-                queryParams.Add($"offset={offset}");
-
-                var queryString = string.Join("&", queryParams);
-                var response = await _httpClient.GetAsync($"/rest/v1/Transactions?{queryString}");
-                response.EnsureSuccessStatusCode();
+                // Get user from database first
+                var users = await _userRepository.GetAllUsers();
+                var user = users.FirstOrDefault(u => u.Email == userEmail);
                 
-                var json = await response.Content.ReadAsStringAsync();
-                var transactions = JsonSerializer.Deserialize<List<Transaction>>(json) ?? new List<Transaction>();
-
-                // Get total count for pagination
-                var countQuery = queryParams.Where(p => !p.StartsWith("limit=") && !p.StartsWith("offset=") && !p.StartsWith("order="));
-                var countQueryString = string.Join("&", countQuery);
-                var countResponse = await _httpClient.GetAsync($"/rest/v1/Transactions?{countQueryString}&select=count");
-                var countJson = await countResponse.Content.ReadAsStringAsync();
-                var totalCount = ExtractCountFromResponse(countJson);
-
-                // Calculate statistics
-                var statistics = await CalculateTransactionStatisticsAsync(user.UserID.GetHashCode(), filter);
-
-                return new TransactionHistoryResponse
+                if (user == null)
                 {
-                    Transactions = transactions,
-                    TotalCount = totalCount,
-                    Page = filter.Page,
-                    PageSize = filter.PageSize,
-                    TotalPages = (int)Math.Ceiling((double)totalCount / filter.PageSize),
-                    Statistics = statistics
-                };
-            }
-            catch (Exception)
-            {
-                return new TransactionHistoryResponse();
-            }
-        }
-
-        /// <summary>
-        /// Gets transaction history for a specific date range
-        /// </summary>
-        public async Task<List<Transaction>> GetTransactionsByDateRangeAsync(string userEmail, DateTime startDate, DateTime endDate)
-        {
-            try
-            {
-                var user = await GetUserByEmail(userEmail);
-                if (user == null) return new List<Transaction>();
-
-                var response = await _httpClient.GetAsync(
-                    $"/rest/v1/Transactions?UserID=eq.{user.UserID.GetHashCode()}&created_at=gte.{startDate:yyyy-MM-dd}&created_at=lte.{endDate:yyyy-MM-dd}&select=*&order=created_at.desc");
-                response.EnsureSuccessStatusCode();
-                var json = await response.Content.ReadAsStringAsync();
-                return JsonSerializer.Deserialize<List<Transaction>>(json) ?? new List<Transaction>();
-            }
-            catch (Exception)
-            {
-                return new List<Transaction>();
-            }
-        }
-
-        /// <summary>
-        /// Gets transactions by category
-        /// </summary>
-        public async Task<List<Transaction>> GetTransactionsByCategoryAsync(string userEmail, string category)
-        {
-            try
-            {
-                var user = await GetUserByEmail(userEmail);
-                if (user == null) return new List<Transaction>();
-
-                var response = await _httpClient.GetAsync(
-                    $"/rest/v1/Transactions?UserID=eq.{user.UserID.GetHashCode()}&Category=eq.{category}&select=*&order=created_at.desc");
-                response.EnsureSuccessStatusCode();
-                var json = await response.Content.ReadAsStringAsync();
-                return JsonSerializer.Deserialize<List<Transaction>>(json) ?? new List<Transaction>();
-            }
-            catch (Exception)
-            {
-                return new List<Transaction>();
-            }
-        }
-
-        /// <summary>
-        /// Searches transactions by description
-        /// </summary>
-        public async Task<List<Transaction>> SearchTransactionsAsync(string userEmail, string searchTerm)
-        {
-            try
-            {
-                var user = await GetUserByEmail(userEmail);
-                if (user == null) return new List<Transaction>();
-
-                var response = await _httpClient.GetAsync(
-                    $"/rest/v1/Transactions?UserID=eq.{user.UserID.GetHashCode()}&Description=ilike.*{searchTerm}*&select=*&order=created_at.desc");
-                response.EnsureSuccessStatusCode();
-                var json = await response.Content.ReadAsStringAsync();
-                return JsonSerializer.Deserialize<List<Transaction>>(json) ?? new List<Transaction>();
-            }
-            catch (Exception)
-            {
-                return new List<Transaction>();
-            }
-        }
-
-        /// <summary>
-        /// Gets transaction statistics for a user
-        /// </summary>
-        public async Task<TransactionStatistics> GetTransactionStatisticsAsync(string userEmail, TransactionHistoryFilter? filter = null)
-        {
-            try
-            {
-                var user = await GetUserByEmail(userEmail);
-                if (user == null) return new TransactionStatistics();
-
-                return await CalculateTransactionStatisticsAsync(user.UserID.GetHashCode(), filter);
-            }
-            catch (Exception)
-            {
-                return new TransactionStatistics();
-            }
-        }
-
-        /// <summary>
-        /// Gets recent transactions (last N transactions)
-        /// </summary>
-        public async Task<List<Transaction>> GetRecentTransactionsAsync(string userEmail, int count = 10)
-        {
-            try
-            {
-                var user = await GetUserByEmail(userEmail);
-                if (user == null) return new List<Transaction>();
-
-                var response = await _httpClient.GetAsync(
-                    $"/rest/v1/Transactions?UserID=eq.{user.UserID.GetHashCode()}&select=*&order=created_at.desc&limit={count}");
-                response.EnsureSuccessStatusCode();
-                var json = await response.Content.ReadAsStringAsync();
-                return JsonSerializer.Deserialize<List<Transaction>>(json) ?? new List<Transaction>();
-            }
-            catch (Exception)
-            {
-                return new List<Transaction>();
-            }
-        }
-
-        /// <summary>
-        /// Gets monthly transaction summary
-        /// </summary>
-        public async Task<Dictionary<string, float>> GetMonthlyTransactionSummaryAsync(string userEmail, int year)
-        {
-            try
-            {
-                var user = await GetUserByEmail(userEmail);
-                if (user == null) return new Dictionary<string, float>();
-
-                var response = await _httpClient.GetAsync(
-                    $"/rest/v1/Transactions?UserID=eq.{user.UserID.GetHashCode()}&created_at=gte.{year}-01-01&created_at=lte.{year}-12-31&select=*&order=created_at.desc");
-                response.EnsureSuccessStatusCode();
-                var json = await response.Content.ReadAsStringAsync();
-                var transactions = JsonSerializer.Deserialize<List<Transaction>>(json) ?? new List<Transaction>();
-
-                var monthlySummary = new Dictionary<string, float>();
-                for (int month = 1; month <= 12; month++)
-                {
-                    monthlySummary[$"{year}-{month:D2}"] = 0;
+                    return new List<Savings>();
                 }
 
-                foreach (var transaction in transactions)
-                {
-                    if (transaction.created_at.HasValue)
-                    {
-                        var monthKey = $"{transaction.created_at.Value:yyyy-MM}";
-                        monthlySummary[monthKey] += transaction.Amount;
-                    }
-                }
-
-                return monthlySummary;
+                var response = await _httpClient.GetAsync($"/rest/v1/Savings?UserID=eq.{user.UserID}&select=*&order=created_at.desc");
+                response.EnsureSuccessStatusCode();
+                var json = await response.Content.ReadAsStringAsync();
+                return JsonSerializer.Deserialize<List<Savings>>(json) ?? new List<Savings>();
             }
             catch (Exception)
             {
-                return new Dictionary<string, float>();
+                return new List<Savings>();
             }
         }
 
-        public async Task<Transaction?> GetTransactionByIdAsync(int transactionId)
+        public async Task<Savings?> GetTransactionByIdAsync(int transactionId)
         {
             try
             {
-                var response = await _httpClient.GetAsync($"/rest/v1/Transactions?TransactionID=eq.{transactionId}&select=*");
+                var response = await _httpClient.GetAsync($"/rest/v1/Savings?TransactionID=eq.{transactionId}&select=*");
                 response.EnsureSuccessStatusCode();
                 var json = await response.Content.ReadAsStringAsync();
-                return JsonSerializer.Deserialize<List<Transaction>>(json)?.FirstOrDefault();
+                return JsonSerializer.Deserialize<List<Savings>>(json)?.FirstOrDefault();
             }
             catch (Exception)
             {
@@ -295,19 +63,19 @@ namespace MoneyWise.Services
             }
         }
 
-        public async Task<bool> CreateTransactionAsync(Transaction transaction)
+        public async Task<bool> CreateTransactionAsync(Savings transaction)
         {
             var json = JsonSerializer.Serialize(transaction);
             var content = new StringContent(json, Encoding.UTF8, "application/json");
-            var response = await _httpClient.PostAsync("/rest/v1/Transactions", content);
+            var response = await _httpClient.PostAsync("/rest/v1/Savings", content);
             return response.IsSuccessStatusCode;
         }
 
-        public async Task<bool> UpdateTransactionAsync(int id, Transaction transaction)
+        public async Task<bool> UpdateTransactionAsync(int id, Savings transaction)
         {
             var json = JsonSerializer.Serialize(transaction);
             var content = new StringContent(json, Encoding.UTF8, "application/json");
-            var request = new HttpRequestMessage(new HttpMethod("PATCH"), $"/rest/v1/Transactions?TransactionID=eq.{id}")
+            var request = new HttpRequestMessage(new HttpMethod("PATCH"), $"/rest/v1/Savings?TransactionID=eq.{id}")
             {
                 Content = content
             };
@@ -319,7 +87,7 @@ namespace MoneyWise.Services
         {
             try
             {
-                var response = await _httpClient.DeleteAsync($"/rest/v1/Transactions?TransactionID=eq.{id}");
+                var response = await _httpClient.DeleteAsync($"/rest/v1/Savings?TransactionID=eq.{id}");
                 return response.IsSuccessStatusCode;
             }
             catch (Exception)
@@ -337,29 +105,21 @@ namespace MoneyWise.Services
                     return (false, "User not authenticated");
                 }
 
-                var user = await GetUserByEmail(userEmail);
+                // Get user from database
+                var users = await _userRepository.GetAllUsers();
+                var user = users.FirstOrDefault(u => u.Email == userEmail);
+                
                 if (user == null)
                 {
                     return (false, "User not found");
                 }
 
-                // Determine transaction type based on action
-                var transactionType = request.Action.ToLower() switch
-                {
-                    "add" => "income",
-                    "withdraw" => "expense",
-                    _ => "transfer"
-                };
-
-                // Create transaction
-                var transaction = new Transaction
+                // Create transaction in Savings table
+                var transaction = new Savings
                 {
                     TransactionID = 0, // Auto-generated by database
-                    UserID = user.UserID.GetHashCode(),
-                    Amount = request.Amount,
-                    Description = request.Description,
-                    Category = request.Category ?? "General",
-                    TransactionType = transactionType,
+                    UserID = user.UserID,
+                    Amount = (decimal)request.Amount,
                     created_at = DateTime.UtcNow
                 };
 
@@ -381,45 +141,82 @@ namespace MoneyWise.Services
             }
         }
 
-        // Private helper methods
-        private async Task<Users?> GetUserByEmail(string userEmail)
-        {
-            var users = await _userRepository.GetAllUsers();
-            return users.FirstOrDefault(u => u.Email == userEmail);
-        }
+        // New methods for enhanced transaction history functionality
 
-        private async Task<TransactionStatistics> CalculateTransactionStatisticsAsync(int userId, TransactionHistoryFilter? filter = null)
+        public async Task<List<Savings>> GetRecentTransactionsAsync(string userEmail, int count = 10)
         {
             try
             {
-                var allTransactions = await GetUserTransactionsAsync(userId.ToString());
+                var users = await _userRepository.GetAllUsers();
+                var user = users.FirstOrDefault(u => u.Email == userEmail);
                 
-                if (filter != null)
+                if (user == null)
                 {
-                    allTransactions = ApplyFilterToTransactions(allTransactions, filter);
+                    return new List<Savings>();
                 }
 
-                var statistics = new TransactionStatistics
+                var response = await _httpClient.GetAsync($"/rest/v1/Savings?UserID=eq.{user.UserID}&select=*&order=created_at.desc&limit={count}");
+                response.EnsureSuccessStatusCode();
+                var json = await response.Content.ReadAsStringAsync();
+                return JsonSerializer.Deserialize<List<Savings>>(json) ?? new List<Savings>();
+            }
+            catch (Exception)
+            {
+                return new List<Savings>();
+            }
+        }
+
+        public async Task<List<Savings>> GetTransactionsByDateRangeAsync(string userEmail, DateTime startDate, DateTime endDate)
+        {
+            try
+            {
+                var users = await _userRepository.GetAllUsers();
+                var user = users.FirstOrDefault(u => u.Email == userEmail);
+                
+                if (user == null)
                 {
-                    TotalTransactions = allTransactions.Count,
-                    TotalIncome = allTransactions.Where(t => t.Amount > 0).Sum(t => t.Amount),
-                    TotalExpenses = allTransactions.Where(t => t.Amount < 0).Sum(t => Math.Abs(t.Amount)),
-                    LargestTransaction = allTransactions.Any() ? allTransactions.Max(t => Math.Abs(t.Amount)) : 0,
-                    SmallestTransaction = allTransactions.Any() ? allTransactions.Min(t => Math.Abs(t.Amount)) : 0
+                    return new List<Savings>();
+                }
+
+                var startDateStr = startDate.ToString("yyyy-MM-dd");
+                var endDateStr = endDate.ToString("yyyy-MM-dd");
+                
+                var response = await _httpClient.GetAsync($"/rest/v1/Savings?UserID=eq.{user.UserID}&created_at=gte.{startDateStr}&created_at=lte.{endDateStr}&select=*&order=created_at.desc");
+                response.EnsureSuccessStatusCode();
+                var json = await response.Content.ReadAsStringAsync();
+                return JsonSerializer.Deserialize<List<Savings>>(json) ?? new List<Savings>();
+            }
+            catch (Exception)
+            {
+                return new List<Savings>();
+            }
+        }
+
+        public async Task<TransactionStatistics> GetTransactionStatisticsAsync(string userEmail, DateTime? startDate = null, DateTime? endDate = null)
+        {
+            try
+            {
+                var transactions = await GetUserTransactionsAsync(userEmail);
+                
+                if (startDate.HasValue && endDate.HasValue)
+                {
+                    transactions = transactions.Where(t => t.created_at >= startDate && t.created_at <= endDate).ToList();
+                }
+
+                var deposits = transactions.Where(t => t.Amount >= 0).ToList();
+                var withdrawals = transactions.Where(t => t.Amount < 0).ToList();
+
+                return new TransactionStatistics
+                {
+                    TotalTransactions = transactions.Count,
+                    TotalDeposits = (float)deposits.Sum(t => t.Amount),
+                    TotalWithdrawals = (float)Math.Abs(withdrawals.Sum(t => t.Amount)),
+                    NetBalance = (float)transactions.Sum(t => t.Amount),
+                    AverageDeposit = deposits.Any() ? (float)deposits.Average(t => t.Amount) : 0,
+                    AverageWithdrawal = withdrawals.Any() ? (float)Math.Abs(withdrawals.Average(t => t.Amount)) : 0,
+                    LargestDeposit = deposits.Any() ? (float)deposits.Max(t => t.Amount) : 0,
+                    LargestWithdrawal = withdrawals.Any() ? (float)Math.Abs(withdrawals.Min(t => t.Amount)) : 0
                 };
-
-                statistics.NetAmount = statistics.TotalIncome - statistics.TotalExpenses;
-                statistics.AverageTransactionAmount = allTransactions.Any() ? allTransactions.Average(t => Math.Abs(t.Amount)) : 0;
-
-                // Calculate category statistics
-                var categoryGroups = allTransactions.GroupBy(t => t.Category ?? "Uncategorized");
-                foreach (var group in categoryGroups)
-                {
-                    statistics.CategoryTotals[group.Key] = group.Sum(t => t.Amount);
-                    statistics.CategoryCounts[group.Key] = group.Count();
-                }
-
-                return statistics;
             }
             catch (Exception)
             {
@@ -427,65 +224,141 @@ namespace MoneyWise.Services
             }
         }
 
-        private List<Transaction> ApplyFilterToTransactions(List<Transaction> transactions, TransactionHistoryFilter filter)
-        {
-            var filtered = transactions.AsEnumerable();
-
-            if (filter.StartDate.HasValue)
-            {
-                filtered = filtered.Where(t => t.created_at >= filter.StartDate.Value);
-            }
-
-            if (filter.EndDate.HasValue)
-            {
-                filtered = filtered.Where(t => t.created_at <= filter.EndDate.Value);
-            }
-
-            if (filter.MinAmount.HasValue)
-            {
-                filtered = filtered.Where(t => Math.Abs(t.Amount) >= filter.MinAmount.Value);
-            }
-
-            if (filter.MaxAmount.HasValue)
-            {
-                filtered = filtered.Where(t => Math.Abs(t.Amount) <= filter.MaxAmount.Value);
-            }
-
-            if (!string.IsNullOrEmpty(filter.Category))
-            {
-                filtered = filtered.Where(t => t.Category == filter.Category);
-            }
-
-            if (!string.IsNullOrEmpty(filter.TransactionType))
-            {
-                filtered = filtered.Where(t => t.TransactionType == filter.TransactionType);
-            }
-
-            if (!string.IsNullOrEmpty(filter.SearchTerm))
-            {
-                filtered = filtered.Where(t => 
-                    t.Description?.Contains(filter.SearchTerm, StringComparison.OrdinalIgnoreCase) == true);
-            }
-
-            return filtered.ToList();
-        }
-
-        private int ExtractCountFromResponse(string json)
+        public async Task<List<MonthlyTransactionSummary>> GetMonthlyTransactionSummaryAsync(string userEmail, int year)
         {
             try
             {
-                // Supabase count response format: [{"count": 123}]
-                var countArray = JsonSerializer.Deserialize<List<Dictionary<string, object>>>(json);
-                if (countArray?.FirstOrDefault()?.TryGetValue("count", out var countValue) == true)
+                var transactions = await GetUserTransactionsAsync(userEmail);
+                var yearTransactions = transactions.Where(t => t.created_at?.Year == year).ToList();
+
+                var monthlySummaries = new List<MonthlyTransactionSummary>();
+                
+                for (int month = 1; month <= 12; month++)
                 {
-                    return Convert.ToInt32(countValue);
+                    var monthTransactions = yearTransactions.Where(t => t.created_at?.Month == month).ToList();
+                    var deposits = monthTransactions.Where(t => t.Amount >= 0).Sum(t => t.Amount);
+                    var withdrawals = Math.Abs(monthTransactions.Where(t => t.Amount < 0).Sum(t => t.Amount));
+                    
+                    monthlySummaries.Add(new MonthlyTransactionSummary
+                    {
+                        Month = month,
+                        MonthName = new DateTime(year, month, 1).ToString("MMMM"),
+                        TotalDeposits = (float)deposits,
+                        TotalWithdrawals = (float)withdrawals,
+                        NetAmount = (float)(deposits - withdrawals),
+                        TransactionCount = monthTransactions.Count
+                    });
                 }
-                return 0;
+
+                return monthlySummaries;
             }
-            catch
+            catch (Exception)
             {
-                return 0;
+                return new List<MonthlyTransactionSummary>();
             }
         }
+
+        public async Task<TransactionHistoryResponse> GetTransactionHistoryAsync(string userEmail, TransactionHistoryFilter? filter = null)
+        {
+            try
+            {
+                var transactions = await GetUserTransactionsAsync(userEmail);
+                
+                if (filter != null)
+                {
+                    // Apply date range filter
+                    if (filter.StartDate.HasValue)
+                    {
+                        transactions = transactions.Where(t => t.created_at >= filter.StartDate.Value).ToList();
+                    }
+                    
+                    if (filter.EndDate.HasValue)
+                    {
+                        transactions = transactions.Where(t => t.created_at <= filter.EndDate.Value).ToList();
+                    }
+
+                    // Apply amount range filter
+                    if (filter.MinAmount.HasValue)
+                    {
+                        transactions = transactions.Where(t => Math.Abs((float)t.Amount) >= filter.MinAmount.Value).ToList();
+                    }
+                    
+                    if (filter.MaxAmount.HasValue)
+                    {
+                        transactions = transactions.Where(t => Math.Abs((float)t.Amount) <= filter.MaxAmount.Value).ToList();
+                    }
+
+                    // Apply transaction type filter
+                    if (!string.IsNullOrEmpty(filter.TransactionType))
+                    {
+                        if (filter.TransactionType.ToLower() == "deposit")
+                        {
+                            transactions = transactions.Where(t => t.Amount >= 0).ToList();
+                        }
+                        else if (filter.TransactionType.ToLower() == "withdrawal")
+                        {
+                            transactions = transactions.Where(t => t.Amount < 0).ToList();
+                        }
+                    }
+                }
+
+                var statistics = await GetTransactionStatisticsAsync(userEmail);
+                
+                return new TransactionHistoryResponse
+                {
+                    Transactions = transactions,
+                    Statistics = statistics,
+                    TotalCount = transactions.Count
+                };
+            }
+            catch (Exception)
+            {
+                return new TransactionHistoryResponse
+                {
+                    Transactions = new List<Savings>(),
+                    Statistics = new TransactionStatistics(),
+                    TotalCount = 0
+                };
+            }
+        }
+    }
+
+    // Supporting classes for enhanced functionality
+    public class TransactionStatistics
+    {
+        public int TotalTransactions { get; set; }
+        public float TotalDeposits { get; set; }
+        public float TotalWithdrawals { get; set; }
+        public float NetBalance { get; set; }
+        public float AverageDeposit { get; set; }
+        public float AverageWithdrawal { get; set; }
+        public float LargestDeposit { get; set; }
+        public float LargestWithdrawal { get; set; }
+    }
+
+    public class MonthlyTransactionSummary
+    {
+        public int Month { get; set; }
+        public string MonthName { get; set; } = string.Empty;
+        public float TotalDeposits { get; set; }
+        public float TotalWithdrawals { get; set; }
+        public float NetAmount { get; set; }
+        public int TransactionCount { get; set; }
+    }
+
+    public class TransactionHistoryFilter
+    {
+        public DateTime? StartDate { get; set; }
+        public DateTime? EndDate { get; set; }
+        public float? MinAmount { get; set; }
+        public float? MaxAmount { get; set; }
+        public string? TransactionType { get; set; } // "deposit" or "withdrawal"
+    }
+
+    public class TransactionHistoryResponse
+    {
+        public List<Savings> Transactions { get; set; } = new List<Savings>();
+        public TransactionStatistics Statistics { get; set; } = new TransactionStatistics();
+        public int TotalCount { get; set; }
     }
 }

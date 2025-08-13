@@ -32,7 +32,7 @@ namespace MoneyWise.Controllers
             {
                 _logger.LogError(ex, "Error retrieving transaction history");
                 TempData["ErrorMessage"] = "An error occurred while loading transaction history.";
-                return View(new List<Models.Transaction>());
+                return View(new List<Models.Savings>());
             }
         }
 
@@ -78,7 +78,7 @@ namespace MoneyWise.Controllers
                 var authResult = ValidateAuthentication();
                 if (authResult != null) return authResult;
 
-                var statistics = await _transactionService.GetTransactionStatisticsAsync(GetCurrentUserEmail()!, filter);
+                var statistics = await _transactionService.GetTransactionStatisticsAsync(GetCurrentUserEmail()!, filter?.StartDate, filter?.EndDate);
                 return JsonSuccess(statistics);
             }
             catch (Exception ex)
@@ -122,50 +122,6 @@ namespace MoneyWise.Controllers
         }
 
         [HttpGet]
-        public async Task<IActionResult> GetTransactionsByCategory([FromQuery] string category)
-        {
-            try
-            {
-                var authResult = ValidateAuthentication();
-                if (authResult != null) return authResult;
-
-                if (string.IsNullOrEmpty(category))
-                {
-                    return JsonError("Category parameter is required");
-                }
-
-                var transactions = await _transactionService.GetTransactionsByCategoryAsync(GetCurrentUserEmail()!, category);
-                return JsonSuccess(transactions);
-            }
-            catch (Exception ex)
-            {
-                return HandleException(ex, "retrieving transactions by category");
-            }
-        }
-
-        [HttpGet]
-        public async Task<IActionResult> SearchTransactions([FromQuery] string searchTerm)
-        {
-            try
-            {
-                var authResult = ValidateAuthentication();
-                if (authResult != null) return authResult;
-
-                if (string.IsNullOrEmpty(searchTerm))
-                {
-                    return JsonError("Search term is required");
-                }
-
-                var transactions = await _transactionService.SearchTransactionsAsync(GetCurrentUserEmail()!, searchTerm);
-                return JsonSuccess(transactions);
-            }
-            catch (Exception ex)
-            {
-                return HandleException(ex, "searching transactions");
-            }
-        }
-
-        [HttpGet]
         public async Task<IActionResult> GetMonthlySummary([FromQuery] int year)
         {
             try
@@ -200,7 +156,7 @@ namespace MoneyWise.Controllers
         }
 
         [HttpPut("{id}")]
-        public async Task<IActionResult> UpdateTransaction(int id, [FromBody] Transaction transaction)
+        public async Task<IActionResult> UpdateTransaction(int id, [FromBody] Savings transaction)
         {
             try
             {
