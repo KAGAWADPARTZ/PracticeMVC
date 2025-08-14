@@ -74,6 +74,7 @@ builder.Services.AddScoped<UserRepository>();
 builder.Services.AddScoped<FacebookAuthService>();
 builder.Services.AddScoped<SavingsService>();
 builder.Services.AddScoped<SavingsCalculatorService>();
+builder.Services.AddScoped<HistoryService>();
 
 var app = builder.Build();
 

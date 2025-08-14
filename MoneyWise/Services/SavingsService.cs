@@ -8,11 +8,13 @@ namespace MoneyWise.Services
     {
         private readonly SupabaseService _supabaseService;
         private readonly UserRepository _userRepository;
+        private readonly HistoryService _historyService;
 
-        public SavingsService(SupabaseService supabaseService, UserRepository userRepository)
+        public SavingsService(SupabaseService supabaseService, UserRepository userRepository, HistoryService historyService)
         {
             _supabaseService = supabaseService;
             _userRepository = userRepository;
+            _historyService = historyService;
         }
 
         public async Task<Savings?> GetUserSavingsAsync(string userEmail)
@@ -110,6 +112,17 @@ namespace MoneyWise.Services
 
                 if (createSuccess)
                 {
+                    // Create history record for the transaction
+                    var historyType = request.Action == "deposit" ? "deposit" : "withdrawal";
+                    var historyAmount = request.SavingsAmount;
+                    
+                    var historySuccess = await _historyService.CreateHistoryRecordAsync(userEmail, historyType, historyAmount);
+                    
+                    if (!historySuccess)
+                    {
+                        Console.WriteLine("Warning: Failed to create history record, but transaction was successful");
+                    }
+
                     var actionText = request.Action == "deposit" ? "deposited" : "withdrawn";
                     return (true, $"₱{request.SavingsAmount:F2} successfully {actionText}.");
                 }

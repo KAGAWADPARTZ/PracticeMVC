@@ -183,5 +183,58 @@ namespace MoneyWise.Services
             var json = await response.Content.ReadAsStringAsync();
             return JsonSerializer.Deserialize<List<Savings>>(json);
         }
+
+        // History methods
+        public async Task<List<HistoryModel>> GetAllHistoriesAsync()
+        {
+            var response = await _httpClient.GetAsync("/rest/v1/Histories?select=*");
+            response.EnsureSuccessStatusCode();
+            var json = await response.Content.ReadAsStringAsync();
+            return JsonSerializer.Deserialize<List<HistoryModel>>(json) ?? new List<HistoryModel>();
+        }
+
+        public async Task<List<HistoryModel>> GetHistoriesByUserIdAsync(int userId)
+        {
+            var response = await _httpClient.GetAsync($"/rest/v1/Histories?UserID=eq.{userId}&select=*&order=created_at.desc");
+            if (!response.IsSuccessStatusCode)
+            {
+                return new List<HistoryModel>();
+            }
+            var json = await response.Content.ReadAsStringAsync();
+            return JsonSerializer.Deserialize<List<HistoryModel>>(json) ?? new List<HistoryModel>();
+        }
+
+        public async Task<bool> CreateHistoryAsync(HistoryModel history)
+        {
+            var json = JsonSerializer.Serialize(history);
+            Console.WriteLine($"JSON being sent to Histories table: {json}");
+
+            var content = new StringContent(json, Encoding.UTF8, "application/json");
+            var response = await _httpClient.PostAsync("/rest/v1/Histories", content);
+
+            var responseContent = await response.Content.ReadAsStringAsync();
+            Console.WriteLine($"Histories response status: {response.StatusCode}");
+            Console.WriteLine($"Histories response body: {responseContent}");
+
+            return response.IsSuccessStatusCode;
+        }
+
+        public async Task<bool> UpdateHistoryAsync(int historyId, HistoryModel history)
+        {
+            var json = JsonSerializer.Serialize(history);
+            var content = new StringContent(json, Encoding.UTF8, "application/json");
+            var request = new HttpRequestMessage(new HttpMethod("PATCH"), $"/rest/v1/Histories?HistoryID=eq.{historyId}")
+            {
+                Content = content
+            };
+            var response = await _httpClient.SendAsync(request);
+            return response.IsSuccessStatusCode;
+        }
+
+        public async Task<bool> DeleteHistoryAsync(int historyId)
+        {
+            var response = await _httpClient.DeleteAsync($"/rest/v1/Histories?HistoryID=eq.{historyId}");
+            return response.IsSuccessStatusCode;
+        }
      }
 }
