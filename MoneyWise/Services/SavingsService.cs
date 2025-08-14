@@ -30,29 +30,25 @@ namespace MoneyWise.Services
                     return null;
                 }
 
-                // Get all transactions for the user
-                var allTransactions = await _supabaseService.GetTransactionsByUserIdAsync(user.UserID);
+                // Get current savings balance from Savings table
+                var currentSavings = await _supabaseService.GetSavingsByUserIdAsync(user.UserID);
                 
-                if (allTransactions == null || !allTransactions.Any())
+                if (currentSavings == null)
                 {
-                    return null;
+                    // If no savings record exists, create one with zero balance
+                    var newSavings = new Savings
+                    {
+                        TransactionID = 0,
+                        UserID = user.UserID,
+                        Amount = 0,
+                        created_at = DateTime.UtcNow
+                    };
+                    
+                    await _supabaseService.CreateSavingsAsync(newSavings);
+                    return newSavings;
                 }
 
-                // Calculate current balance from all transactions
-                var currentBalance = allTransactions.Sum(t => t.Amount);
-                
-                // Get the most recent transaction for metadata
-                var latestTransaction = allTransactions.OrderByDescending(t => t.created_at).First();
-                
-                // Return a summary object with the calculated balance
-                return new Savings
-                {
-                    TransactionID = latestTransaction.TransactionID,
-                    UserID = user.UserID,
-                    Amount = currentBalance,
-                    created_at = latestTransaction.created_at,
-                    updated_at = latestTransaction.updated_at
-                };
+                return currentSavings;
             }
             catch (Exception)
             {
@@ -99,36 +95,61 @@ namespace MoneyWise.Services
                 if (user == null)
                     return (false, $"User not found. Email: {userEmail}");
 
-                // Always create a new transaction record for each deposit/withdrawal
-                var newTransaction = new Savings
+                // Get current savings balance
+                var currentSavings = await GetUserSavingsAsync(userEmail);
+                if (currentSavings == null)
                 {
-                    TransactionID = 0, // Let database auto-generate the primary key
+                    return (false, "Failed to retrieve current savings balance");
+                }
+
+                // Calculate new balance
+                var newBalance = currentSavings.Amount + (request.Action == "deposit" ? request.SavingsAmount : -request.SavingsAmount);
+
+                // Check if withdrawal would result in negative balance
+                if (request.Action == "withdraw" && newBalance < 0)
+                {
+                    return (false, "Insufficient funds for withdrawal");
+                }
+
+                // Update the current balance in Savings table
+                var updatedSavings = new Savings
+                {
+                    TransactionID = currentSavings.TransactionID,
                     UserID = user.UserID,
-                    Amount = request.Action == "deposit" ? request.SavingsAmount : -request.SavingsAmount,
-                    created_at = DateTime.UtcNow
+                    Amount = newBalance,
+                    created_at = currentSavings.created_at,
+                    updated_at = DateTime.UtcNow
                 };
 
-                var createSuccess = await _supabaseService.CreateSavingsAsync(newTransaction);
+                var updateSuccess = await _supabaseService.UpdateSavingsAsync(currentSavings.TransactionID, updatedSavings);
 
-                if (createSuccess)
+                if (updateSuccess)
                 {
-                    // Create history record for the transaction
-                    var historyType = request.Action == "deposit" ? "deposit" : "withdrawal";
-                    var historyAmount = request.SavingsAmount;
-                    
-                    var historySuccess = await _historyService.CreateHistoryRecordAsync(userEmail, historyType, historyAmount);
-                    
-                    if (!historySuccess)
+                    // Create transaction history record in Histories table
+                    var historyRequest = new HistoryRequest
                     {
-                        Console.WriteLine("Warning: Failed to create history record, but transaction was successful");
-                    }
+                        Amount = (float)request.SavingsAmount,
+                        Type = request.Action,
+                        Description = $"{request.Action} transaction"
+                    };
 
-                    var actionText = request.Action == "deposit" ? "deposited" : "withdrawn";
-                    return (true, $"₱{request.SavingsAmount:F2} successfully {actionText}.");
+                    var historySuccess = await _historyService.CreateHistoryAsync(userEmail, historyRequest);
+
+                    if (historySuccess)
+                    {
+                        var actionText = request.Action == "deposit" ? "deposited" : "withdrawn";
+                        return (true, $"₱{request.SavingsAmount:F2} successfully {actionText}. New balance: ₱{newBalance:F2}");
+                    }
+                    else
+                    {
+                        // Transaction was updated but history failed - still return success for the transaction
+                        var actionText = request.Action == "deposit" ? "deposited" : "withdrawn";
+                        return (true, $"₱{request.SavingsAmount:F2} successfully {actionText}. New balance: ₱{newBalance:F2} (History recording failed)");
+                    }
                 }
                 else
                 {
-                    return (false, "Failed to create transaction record.");
+                    return (false, "Failed to update savings balance.");
                 }
             }
             catch (Exception ex)

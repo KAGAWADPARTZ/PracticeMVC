@@ -1,22 +1,21 @@
 ﻿using System.ComponentModel.DataAnnotations;
-using System.Text.Json.Serialization;
 
 namespace MoneyWise.Models
 {
     public class HistoryModel
     {
-        [JsonIgnore]
         public int HistoryID { get; set; }
         public int UserID { get; set; }
-        public string Type { get; set; } = string.Empty; // "deposit", "withdrawal", etc.
-        public decimal Amount { get; set; }
+        public string Type { get; set; } = string.Empty; // "deposit" or "withdrawal"
+        public float[] Amount { get; set; } = new float[0]; // Array to store amount values
         public DateTime? created_at { get; set; }
+        public DateTime? updated_at { get; set; }
     }
 
     public class HistoryRequest
     {
-        public int UserID { get; set; }
+        public float Amount { get; set; }
         public string Type { get; set; } = string.Empty;
-        public decimal Amount { get; set; }
+        public string Description { get; set; } = string.Empty;
     }
 }

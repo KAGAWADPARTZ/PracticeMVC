@@ -8,11 +8,10 @@ namespace MoneyWise.Services
     {
         private readonly HttpClient _httpClient;
         private readonly UserRepository _userRepository;
-        private readonly HistoryService _historyService;
         private readonly string _supabaseUrl;
         private readonly string _supabaseApiKey;
 
-        public TransactionService(UserRepository userRepository, HistoryService historyService, IConfiguration configuration)
+        public TransactionService(UserRepository userRepository, IConfiguration configuration)
         {
             _supabaseUrl = configuration["Authentication:Supabase:Url"]!;
             _supabaseApiKey = configuration["Authentication:Supabase:ApiKey"]!;
@@ -23,7 +22,6 @@ namespace MoneyWise.Services
             _httpClient.DefaultRequestHeaders.Add("apikey", _supabaseApiKey);
             _httpClient.DefaultRequestHeaders.Add("Authorization", $"Bearer {_supabaseApiKey}");
             _userRepository = userRepository;
-            _historyService = historyService;
         }
 
         public async Task<List<Savings>> GetUserTransactionsAsync(string userEmail)
@@ -129,17 +127,6 @@ namespace MoneyWise.Services
                 
                 if (success)
                 {
-                    // Create history record for the transaction
-                    var historyType = request.Action == "add" ? "deposit" : "withdrawal";
-                    var historyAmount = (decimal)Math.Abs(request.Amount);
-                    
-                    var historySuccess = await _historyService.CreateHistoryRecordAsync(userEmail, historyType, historyAmount);
-                    
-                    if (!historySuccess)
-                    {
-                        Console.WriteLine("Warning: Failed to create history record, but transaction was successful");
-                    }
-
                     var actionText = request.Action == "add" ? "added to" : "withdrawn from";
                     return (true, $"₱{Math.Abs(request.Amount):F2} successfully {actionText} your savings.");
                 }

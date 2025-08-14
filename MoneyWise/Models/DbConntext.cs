@@ -13,5 +13,6 @@ namespace MoneyWise.Models
         public DbSet<Users> Users { get; set; }
         public DbSet<Transaction> Transactions { get; set; }
         public DbSet<Savings> Savings { get; set; }
+        public DbSet<HistoryModel> Histories { get; set; }
     }
 }

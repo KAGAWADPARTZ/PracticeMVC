@@ -17,7 +17,6 @@ namespace MoneyWise.Services
         {
             try
             {
-                // Get user from database
                 var users = await _userRepository.GetAllUsers();
                 var user = users.FirstOrDefault(u => u.Email == userEmail);
                 
@@ -26,48 +25,11 @@ namespace MoneyWise.Services
                     return new List<HistoryModel>();
                 }
 
-                // Get all history records for the user
-                var histories = await _supabaseService.GetHistoriesByUserIdAsync(user.UserID);
-                return histories ?? new List<HistoryModel>();
+                return await _supabaseService.GetHistoriesByUserIdAsync(user.UserID);
             }
-            catch (Exception ex)
+            catch (Exception)
             {
-                Console.WriteLine($"Exception in GetUserHistoryAsync: {ex.Message}");
                 return new List<HistoryModel>();
-            }
-        }
-
-        public async Task<bool> CreateHistoryRecordAsync(string userEmail, string type, decimal amount)
-        {
-            try
-            {
-                if (string.IsNullOrEmpty(userEmail))
-                    return false;
-
-                // Get user from database
-                var users = await _userRepository.GetAllUsers();
-                var user = users.FirstOrDefault(u => u.Email == userEmail);
-
-                if (user == null)
-                    return false;
-
-                // Create history record
-                var historyRecord = new HistoryModel
-                {
-                    HistoryID = 0, // Let database auto-generate the primary key
-                    UserID = user.UserID,
-                    Type = type,
-                    Amount = amount,
-                    created_at = DateTime.UtcNow
-                };
-
-                var success = await _supabaseService.CreateHistoryAsync(historyRecord);
-                return success;
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine($"Exception in CreateHistoryRecordAsync: {ex.Message}");
-                return false;
             }
         }
 
@@ -75,12 +37,11 @@ namespace MoneyWise.Services
         {
             try
             {
-                var allHistory = await GetUserHistoryAsync(userEmail);
-                return allHistory.Take(count).ToList();
+                var histories = await GetUserHistoryAsync(userEmail);
+                return histories.Take(count).ToList();
             }
-            catch (Exception ex)
+            catch (Exception)
             {
-                Console.WriteLine($"Exception in GetRecentHistoryAsync: {ex.Message}");
                 return new List<HistoryModel>();
             }
         }
@@ -89,56 +50,78 @@ namespace MoneyWise.Services
         {
             try
             {
-                var allHistory = await GetUserHistoryAsync(userEmail);
-                return allHistory.Where(h => h.created_at >= startDate && h.created_at <= endDate).ToList();
+                var histories = await GetUserHistoryAsync(userEmail);
+                return histories.Where(h => h.created_at >= startDate && h.created_at <= endDate).ToList();
             }
-            catch (Exception ex)
+            catch (Exception)
             {
-                Console.WriteLine($"Exception in GetHistoryByDateRangeAsync: {ex.Message}");
                 return new List<HistoryModel>();
             }
         }
 
-        public async Task<Dictionary<string, decimal>> GetHistorySummaryAsync(string userEmail)
+        public async Task<object> GetHistorySummaryAsync(string userEmail)
         {
             try
             {
-                var allHistory = await GetUserHistoryAsync(userEmail);
+                var histories = await GetUserHistoryAsync(userEmail);
                 
-                var summary = new Dictionary<string, decimal>
-                {
-                    ["total_deposits"] = 0,
-                    ["total_withdrawals"] = 0,
-                    ["net_amount"] = 0
-                };
+                var deposits = histories.Where(h => h.Type == "deposit").ToList();
+                var withdrawals = histories.Where(h => h.Type == "withdrawal").ToList();
 
-                foreach (var record in allHistory)
+                var totalDeposits = deposits.Sum(h => h.Amount.Sum());
+                var totalWithdrawals = withdrawals.Sum(h => h.Amount.Sum());
+
+                return new
                 {
-                    if (record.Type.ToLower() == "deposit")
-                    {
-                        summary["total_deposits"] += record.Amount;
-                        summary["net_amount"] += record.Amount;
-                    }
-                    else if (record.Type.ToLower() == "withdrawal")
-                    {
-                        summary["total_withdrawals"] += record.Amount;
-                        summary["net_amount"] -= record.Amount;
-                    }
+                    TotalTransactions = histories.Count,
+                    TotalDeposits = totalDeposits,
+                    TotalWithdrawals = totalWithdrawals,
+                    NetBalance = totalDeposits - totalWithdrawals,
+                    AverageDeposit = deposits.Any() ? deposits.Average(h => h.Amount.Average()) : 0,
+                    AverageWithdrawal = withdrawals.Any() ? withdrawals.Average(h => h.Amount.Average()) : 0
+                };
+            }
+            catch (Exception)
+            {
+                return new
+                {
+                    TotalTransactions = 0,
+                    TotalDeposits = 0,
+                    TotalWithdrawals = 0,
+                    NetBalance = 0,
+                    AverageDeposit = 0,
+                    AverageWithdrawal = 0
+                };
+            }
+        }
+
+        public async Task<bool> CreateHistoryAsync(string userEmail, HistoryRequest request)
+        {
+            try
+            {
+                var users = await _userRepository.GetAllUsers();
+                var user = users.FirstOrDefault(u => u.Email == userEmail);
+                
+                if (user == null)
+                {
+                    return false;
                 }
 
-                return summary;
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine($"Exception in GetHistorySummaryAsync: {ex.Message}");
-                return new Dictionary<string, decimal>
+                var history = new HistoryModel
                 {
-                    ["total_deposits"] = 0,
-                    ["total_withdrawals"] = 0,
-                    ["net_amount"] = 0
+                    HistoryID = 0, // Auto-generated by database
+                    UserID = user.UserID,
+                    Type = request.Type,
+                    Amount = new float[] { request.Amount }, // Store amount as array
+                    created_at = DateTime.UtcNow
                 };
+
+                return await _supabaseService.CreateHistoryAsync(history);
+            }
+            catch (Exception)
+            {
+                return false;
             }
         }
     }
 }
-
