@@ -126,10 +126,27 @@ namespace MoneyWise.Services
         // Savings methods
         public async Task<List<Savings>> GetAllSavingsAsync()
         {
-            var response = await _httpClient.GetAsync("/rest/v1/Savings?select=*");
-            response.EnsureSuccessStatusCode();
-            var json = await response.Content.ReadAsStringAsync();
-            return JsonSerializer.Deserialize<List<Savings>>(json) ?? new List<Savings>();
+            try
+            {
+                var response = await _httpClient.GetAsync("/rest/v1/Savings?select=*&limit=5");
+                Console.WriteLine($"GetAllSavingsAsync response status: {response.StatusCode}");
+                
+                if (!response.IsSuccessStatusCode)
+                {
+                    var errorContent = await response.Content.ReadAsStringAsync();
+                    Console.WriteLine($"GetAllSavingsAsync error: {errorContent}");
+                    return new List<Savings>();
+                }
+                
+                var json = await response.Content.ReadAsStringAsync();
+                Console.WriteLine($"GetAllSavingsAsync response: {json}");
+                return JsonSerializer.Deserialize<List<Savings>>(json) ?? new List<Savings>();
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"GetAllSavingsAsync exception: {ex.Message}");
+                return new List<Savings>();
+            }
         }
 
         public async Task<Savings?> GetSavingsByUserIdAsync(int userId)  // Changed parameter type
@@ -160,16 +177,39 @@ namespace MoneyWise.Services
         }
 
 
+
+
         public async Task<bool> UpdateSavingsAsync(int savingsId, Savings savings)
         {
-            var json = JsonSerializer.Serialize(savings);
-            var content = new StringContent(json, Encoding.UTF8, "application/json");
-            var request = new HttpRequestMessage(new HttpMethod("PATCH"), $"/rest/v1/Savings?TransactionID=eq.{savingsId}")
+            try
             {
-                Content = content
-            };
-            var response = await _httpClient.SendAsync(request);
-            return response.IsSuccessStatusCode;
+                var json = JsonSerializer.Serialize(savings);
+                Console.WriteLine($"JSON being sent to Supabase for savings update: {json}");
+                Console.WriteLine($"Updating savings with ID: {savingsId}");
+
+                var content = new StringContent(json, Encoding.UTF8, "application/json");
+                var request = new HttpRequestMessage(new HttpMethod("PATCH"), $"/rest/v1/Savings?SavingsID=eq.{savingsId}")
+                {
+                    Content = content
+                };
+                var response = await _httpClient.SendAsync(request);
+                
+                var responseContent = await response.Content.ReadAsStringAsync();
+                Console.WriteLine($"Savings update response status: {response.StatusCode}");
+                Console.WriteLine($"Savings update response body: {responseContent}");
+                
+                if (!response.IsSuccessStatusCode)
+                {
+                    Console.WriteLine($"Failed to update savings. Status: {response.StatusCode}, Content: {responseContent}");
+                }
+                
+                return response.IsSuccessStatusCode;
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Exception in UpdateSavingsAsync: {ex.Message}");
+                return false;
+            }
         }
 
         // Transaction methods for savings calculator

@@ -5,8 +5,7 @@ namespace MoneyWise.Models
 {
     public class Savings
     {
-        [JsonIgnore]
-        public int TransactionID { get; set; }
+        public int SavingsID { get; set; } // Changed from 'id' to 'SavingsID' to match your schema
         public int UserID { get; set; }  
         public decimal Amount { get; set; }
         public DateTime? created_at { get; set; }

@@ -33,27 +33,30 @@ namespace MoneyWise.Services
                     };
                 }
 
-                // Get all transactions for the user
-                var transactions = await GetUserTransactionsAsync(user.UserID);
+                // Get current savings balance from Savings table (total amount only)
+                var currentSavings = await _supabaseService.GetSavingsByUserIdAsync(user.UserID);
+                
+                // Get transaction history from Histories table
+                var histories = await _supabaseService.GetHistoriesByUserIdAsync(user.UserID);
 
                 decimal totalSavings = 0;
                 decimal totalWithdrawals = 0;
 
-                foreach (var transaction in transactions)
+                foreach (var history in histories)
                 {
-                    if (transaction.Amount > 0)
+                    if (history.Type == "deposit")
                     {
-                        // Positive amounts are savings/deposits
-                        totalSavings += transaction.Amount;
+                        // Deposits are positive amounts
+                        totalSavings += (decimal)history.Amount;
                     }
-                    else
+                    else if (history.Type == "withdrawal")
                     {
-                        // Negative amounts are withdrawals
-                        totalWithdrawals += Math.Abs(transaction.Amount);
+                        // Withdrawals are positive amounts in history
+                        totalWithdrawals += (decimal)history.Amount;
                     }
                 }
 
-                decimal currentBalance = totalSavings - totalWithdrawals;
+                decimal currentBalance = currentSavings?.Amount ?? 0;
 
                 return new SavingsSummary
                 {
@@ -61,7 +64,7 @@ namespace MoneyWise.Services
                     TotalWithdrawals = totalWithdrawals,
                     CurrentBalance = currentBalance,
                     UserId = user.UserID,
-                    TransactionCount = transactions.Count
+                    TransactionCount = histories.Count
                 };
             }
             catch (Exception)
@@ -71,28 +74,17 @@ namespace MoneyWise.Services
                     TotalSavings = 0,
                     TotalWithdrawals = 0,
                     CurrentBalance = 0,
-                    UserId = 0  // Changed from Guid.Empty to 0
+                    UserId = 0,
+                    TransactionCount = 0
                 };
             }
         }
 
-        private async Task<List<Savings>> GetUserTransactionsAsync(int userId)
+        public async Task<List<TransactionSummary>> GetUserTransactionHistoryAsync(string userEmail)
         {
             try
             {
-                var response = await _supabaseService.GetTransactionsByUserIdAsync(userId);
-                return response ?? new List<Savings>();  // Fixed the null coalescing operator
-            }
-            catch (Exception)
-            {
-                return new List<Savings>();
-            }
-        }
-
-        public async Task<List<TransactionSummary>> GetRecentTransactionsAsync(string userEmail, int limit = 10)
-        {
-            try
-            {
+                // Get user from database
                 var users = await _userRepository.GetAllUsers();
                 var user = users.FirstOrDefault(u => u.Email == userEmail);
 
@@ -101,57 +93,48 @@ namespace MoneyWise.Services
                     return new List<TransactionSummary>();
                 }
 
-                var transactions = await GetUserTransactionsAsync(user.UserID);
+                // Get transaction history from Histories table
+                var histories = await _supabaseService.GetHistoriesByUserIdAsync(user.UserID);
 
-                return transactions
-                    .Take(limit)
-                    .Select(t => new TransactionSummary
+                var transactionSummaries = new List<TransactionSummary>();
+
+                foreach (var history in histories)
+                {
+                    var amount = (decimal)history.Amount;
+                    var formattedAmount = history.Type == "withdrawal" ? $"-₱{amount:F2}" : $"₱{amount:F2}";
+
+                    transactionSummaries.Add(new TransactionSummary
                     {
-                        Amount = t.Amount,
-                        Type = t.Amount > 0 ? "Savings" : "Withdrawal",
-                        Date = t.created_at ?? DateTime.UtcNow,
-                        FormattedAmount = t.Amount > 0 ? $"+₱{t.Amount:F2}" : $"-₱{Math.Abs(t.Amount):F2}"
-                    })
-                    .ToList();
+                        Amount = amount,
+                        Type = history.Type,
+                        Date = history.created_at ?? DateTime.UtcNow,
+                        FormattedAmount = formattedAmount
+                    });
+                }
+
+                return transactionSummaries.OrderByDescending(t => t.Date).ToList();
             }
             catch (Exception)
             {
                 return new List<TransactionSummary>();
             }
         }
-        public async Task<decimal> CalculateAnnualEarningsAsync(string userEmail)
-        {
-            var users = await _userRepository.GetAllUsers();
-            var user = users.FirstOrDefault(u => u.Email == userEmail);
 
-            if (user == null)
-                return 0;
-
-            var transactions = await GetUserTransactionsAsync(user.UserID);
-            var currentYear = DateTime.UtcNow.Year;
-
-            // Sum all deposits (positive amounts) made this year
-            var totalAnnualEarnings = transactions
-                .Where(t => t.Amount > 0 && t.created_at?.Year == currentYear)
-                .Sum(t => t.Amount);
-
-            return totalAnnualEarnings;
-        }
         public async Task<Dictionary<string, decimal>> GetMonthlyEarningsAsync(string userEmail)
         {
             var users = await _userRepository.GetAllUsers();
             var user = users.FirstOrDefault(u => u.Email == userEmail);
             if (user == null) return new Dictionary<string, decimal>();
 
-            var transactions = await GetUserTransactionsAsync(user.UserID);
+            var histories = await _supabaseService.GetHistoriesByUserIdAsync(user.UserID);
             var currentYear = DateTime.UtcNow.Year;
 
-            var monthlyTotals = transactions
-                .Where(t => t.Amount > 0 && t.created_at?.Year == currentYear)
-                .GroupBy(t => t.created_at!.Value.Month)
+            var monthlyTotals = histories
+                .Where(h => h.Type == "deposit" && h.created_at?.Year == currentYear)
+                .GroupBy(h => h.created_at!.Value.Month)
                 .ToDictionary(
                     g => new DateTime(currentYear, g.Key, 1).ToString("MMMM"),
-                    g => g.Sum(t => t.Amount)
+                    g => (decimal)g.Sum(h => h.Amount)
                 );
 
             // Ensure all 12 months are represented (even if 0)

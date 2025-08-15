@@ -70,6 +70,7 @@ builder.Services.AddScoped<LoginService>();
 builder.Services.AddScoped<SessionValidationService>();
 builder.Services.AddSingleton<SupabaseService>(); // will use IConfiguration internally
 builder.Services.AddScoped<TransactionService>();
+builder.Services.AddScoped<TransactionManagementService>();
 builder.Services.AddScoped<UserRepository>();
 builder.Services.AddScoped<FacebookAuthService>();
 builder.Services.AddScoped<SavingsService>();

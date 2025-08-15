@@ -8,11 +8,13 @@ namespace MoneyWise.Controllers
     public class TransactionController : BaseController
     {
         private readonly TransactionService _transactionService;
+        private readonly TransactionManagementService _transactionManagementService;
 
-        public TransactionController(TransactionService transactionService, ILogger<TransactionController> logger, LoginService loginService)
+        public TransactionController(TransactionService transactionService, TransactionManagementService transactionManagementService, ILogger<TransactionController> logger, LoginService loginService)
             : base(logger, loginService)
         {
             _transactionService = transactionService;
+            _transactionManagementService = transactionManagementService;
         }
 
         public async Task<IActionResult> History()
@@ -39,7 +41,7 @@ namespace MoneyWise.Controllers
             {
                 _logger.LogError(ex, "Error retrieving transaction history");
                 TempData["ErrorMessage"] = "An error occurred while loading transaction history.";
-                return View(new List<Models.Savings>());
+                return View(new List<Models.HistoryModel>());
             }
         }
 
@@ -94,7 +96,7 @@ namespace MoneyWise.Controllers
                 var authResult = ValidateAuthentication();
                 if (authResult != null) return authResult;
 
-                var statistics = await _transactionService.GetTransactionStatisticsAsync(GetCurrentUserEmail()!, filter?.StartDate, filter?.EndDate);
+                var statistics = await _transactionService.GetTransactionStatisticsAsync(GetCurrentUserEmail()!);
                 return JsonSuccess(statistics);
             }
             catch (Exception ex)
@@ -174,7 +176,7 @@ namespace MoneyWise.Controllers
                 var authResult = ValidateAuthentication();
                 if (authResult != null) return authResult;
 
-                var result = await _transactionService.SaveUserTransactionAsync(GetCurrentUserEmail(), request);
+                var result = await _transactionManagementService.ProcessTransactionAsync(GetCurrentUserEmail(), request);
                 return Json(new { success = result.success, message = result.message });
             }
             catch (Exception ex)
@@ -184,7 +186,7 @@ namespace MoneyWise.Controllers
         }
 
         [HttpPut("{id}")]
-        public async Task<IActionResult> UpdateTransaction(int id, [FromBody] Savings transaction)
+        public async Task<IActionResult> UpdateTransaction(int id, [FromBody] HistoryModel transaction)
         {
             try
             {
@@ -197,7 +199,7 @@ namespace MoneyWise.Controllers
                 var success = await _transactionService.UpdateTransactionAsync(id, transaction);
                 if (success)
                 {
-                    return JsonSuccess(null, "Transaction updated successfully");
+                    return JsonSuccess(new { }, "Transaction updated successfully");
                 }
                 return JsonError("Failed to update transaction");
             }
@@ -221,7 +223,7 @@ namespace MoneyWise.Controllers
                 var success = await _transactionService.DeleteTransactionAsync(id);
                 if (success)
                 {
-                    return JsonSuccess(null, "Transaction deleted successfully");
+                    return JsonSuccess(new { }, "Transaction deleted successfully");
                 }
                 return JsonError("Failed to delete transaction");
             }

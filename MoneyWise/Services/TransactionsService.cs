@@ -8,10 +8,11 @@ namespace MoneyWise.Services
     {
         private readonly HttpClient _httpClient;
         private readonly UserRepository _userRepository;
+        private readonly SupabaseService _supabaseService;
         private readonly string _supabaseUrl;
         private readonly string _supabaseApiKey;
 
-        public TransactionService(UserRepository userRepository, IConfiguration configuration)
+        public TransactionService(UserRepository userRepository, SupabaseService supabaseService, IConfiguration configuration)
         {
             _supabaseUrl = configuration["Authentication:Supabase:Url"]!;
             _supabaseApiKey = configuration["Authentication:Supabase:ApiKey"]!;
@@ -22,9 +23,10 @@ namespace MoneyWise.Services
             _httpClient.DefaultRequestHeaders.Add("apikey", _supabaseApiKey);
             _httpClient.DefaultRequestHeaders.Add("Authorization", $"Bearer {_supabaseApiKey}");
             _userRepository = userRepository;
+            _supabaseService = supabaseService;
         }
 
-        public async Task<List<Savings>> GetUserTransactionsAsync(string userEmail)
+        public async Task<List<HistoryModel>> GetUserTransactionsAsync(string userEmail)
         {
             try
             {
@@ -34,28 +36,28 @@ namespace MoneyWise.Services
                 
                 if (user == null)
                 {
-                    return new List<Savings>();
+                    return new List<HistoryModel>();
                 }
 
-                var response = await _httpClient.GetAsync($"/rest/v1/Savings?UserID=eq.{user.UserID}&select=*&order=created_at.desc");
+                var response = await _httpClient.GetAsync($"/rest/v1/Histories?UserID=eq.{user.UserID}&select=*&order=created_at.desc");
                 response.EnsureSuccessStatusCode();
                 var json = await response.Content.ReadAsStringAsync();
-                return JsonSerializer.Deserialize<List<Savings>>(json) ?? new List<Savings>();
+                return JsonSerializer.Deserialize<List<HistoryModel>>(json) ?? new List<HistoryModel>();
             }
             catch (Exception)
             {
-                return new List<Savings>();
+                return new List<HistoryModel>();
             }
         }
 
-        public async Task<Savings?> GetTransactionByIdAsync(int transactionId)
+        public async Task<HistoryModel?> GetTransactionByIdAsync(int transactionId)
         {
             try
             {
-                var response = await _httpClient.GetAsync($"/rest/v1/Savings?TransactionID=eq.{transactionId}&select=*");
+                var response = await _httpClient.GetAsync($"/rest/v1/Histories?HistoryID=eq.{transactionId}&select=*");
                 response.EnsureSuccessStatusCode();
                 var json = await response.Content.ReadAsStringAsync();
-                return JsonSerializer.Deserialize<List<Savings>>(json)?.FirstOrDefault();
+                return JsonSerializer.Deserialize<List<HistoryModel>>(json)?.FirstOrDefault();
             }
             catch (Exception)
             {
@@ -63,19 +65,19 @@ namespace MoneyWise.Services
             }
         }
 
-        public async Task<bool> CreateTransactionAsync(Savings transaction)
+        public async Task<bool> CreateTransactionAsync(HistoryModel transaction)
         {
             var json = JsonSerializer.Serialize(transaction);
             var content = new StringContent(json, Encoding.UTF8, "application/json");
-            var response = await _httpClient.PostAsync("/rest/v1/Savings", content);
+            var response = await _httpClient.PostAsync("/rest/v1/Histories", content);
             return response.IsSuccessStatusCode;
         }
 
-        public async Task<bool> UpdateTransactionAsync(int id, Savings transaction)
+        public async Task<bool> UpdateTransactionAsync(int id, HistoryModel transaction)
         {
             var json = JsonSerializer.Serialize(transaction);
             var content = new StringContent(json, Encoding.UTF8, "application/json");
-            var request = new HttpRequestMessage(new HttpMethod("PATCH"), $"/rest/v1/Savings?TransactionID=eq.{id}")
+            var request = new HttpRequestMessage(new HttpMethod("PATCH"), $"/rest/v1/Histories?HistoryID=eq.{id}")
             {
                 Content = content
             };
@@ -87,7 +89,7 @@ namespace MoneyWise.Services
         {
             try
             {
-                var response = await _httpClient.DeleteAsync($"/rest/v1/Savings?TransactionID=eq.{id}");
+                var response = await _httpClient.DeleteAsync($"/rest/v1/Histories?HistoryID=eq.{id}");
                 return response.IsSuccessStatusCode;
             }
             catch (Exception)
@@ -114,36 +116,95 @@ namespace MoneyWise.Services
                     return (false, "User not found");
                 }
 
-                // Create transaction in Savings table
-                var transaction = new Savings
+                // Get current savings balance
+                var currentSavings = await _supabaseService.GetSavingsByUserIdAsync(user.UserID);
+                if (currentSavings == null)
                 {
-                    TransactionID = 0, // Auto-generated by database
-                    UserID = user.UserID,
-                    Amount = (decimal)request.Amount,
-                    created_at = DateTime.UtcNow
-                };
+                    // Create new savings record if none exists
+                    currentSavings = new Savings
+                    {
+                        SavingsID = 0,
+                        UserID = user.UserID,
+                        Amount = 0,
+                        created_at = DateTime.UtcNow
+                    };
+                    await _supabaseService.CreateSavingsAsync(currentSavings);
+                }
 
-                var success = await CreateTransactionAsync(transaction);
+                // Calculate new balance based on transaction type
+                decimal newBalance;
+                string actionText;
                 
-                if (success)
+                if (request.Action.ToLower() == "add" || request.Action.ToLower() == "deposit")
                 {
-                    var actionText = request.Action == "add" ? "added to" : "withdrawn from";
-                    return (true, $"₱{Math.Abs(request.Amount):F2} successfully {actionText} your savings.");
+                    newBalance = currentSavings.Amount + (decimal)request.Amount;
+                    actionText = "added to";
+                }
+                else if (request.Action.ToLower() == "withdraw" || request.Action.ToLower() == "withdrawal")
+                {
+                    // Check if withdrawal would result in negative balance
+                    if (currentSavings.Amount < (decimal)request.Amount)
+                    {
+                        return (false, "Insufficient funds for withdrawal");
+                    }
+                    newBalance = currentSavings.Amount - (decimal)request.Amount;
+                    actionText = "withdrawn from";
                 }
                 else
                 {
-                    return (false, "Failed to save transaction");
+                    return (false, "Invalid transaction type. Use 'add', 'deposit', 'withdraw', or 'withdrawal'");
+                }
+
+                // Update the Savings table with new balance
+                var updatedSavings = new Savings
+                {
+                    SavingsID = currentSavings.SavingsID,
+                    UserID = user.UserID,
+                    Amount = newBalance,
+                    created_at = currentSavings.created_at,
+                    updated_at = DateTime.UtcNow
+                };
+
+                var savingsUpdateSuccess = await _supabaseService.UpdateSavingsAsync(currentSavings.SavingsID, updatedSavings);
+                
+                if (!savingsUpdateSuccess)
+                {
+                    return (false, "Failed to update savings balance");
+                }
+
+                // Create transaction history in Histories table
+                var transaction = new HistoryModel
+                {
+                    HistoryID = 0, // Auto-generated by database
+                    UserID = user.UserID,
+                    Type = request.Action.ToLower() == "add" ? "deposit" : 
+                           request.Action.ToLower() == "withdraw" ? "withdrawal" : request.Action,
+                    Amount = (float)request.Amount,
+                    created_at = DateTime.UtcNow
+                };
+
+                var historySuccess = await CreateTransactionAsync(transaction);
+                
+                if (historySuccess)
+                {
+                    return (true, $"₱{Math.Abs(request.Amount):F2} successfully {actionText} your savings. New balance: ₱{newBalance:F2}");
+                }
+                else
+                {
+                    // Transaction was updated but history failed - still return success for the transaction
+                    return (true, $"₱{Math.Abs(request.Amount):F2} successfully {actionText} your savings. New balance: ₱{newBalance:F2} (History recording failed)");
                 }
             }
-            catch (Exception)
+            catch (Exception ex)
             {
-                return (false, "An error occurred while saving the transaction");
+                Console.WriteLine($"Exception in SaveUserTransactionAsync: {ex.Message}");
+                return (false, "An error occurred while processing the transaction");
             }
         }
 
         // New methods for enhanced transaction history functionality
 
-        public async Task<List<Savings>> GetRecentTransactionsAsync(string userEmail, int count = 10)
+        public async Task<List<HistoryModel>> GetRecentTransactionsAsync(string userEmail, int count = 10)
         {
             try
             {
@@ -152,21 +213,21 @@ namespace MoneyWise.Services
                 
                 if (user == null)
                 {
-                    return new List<Savings>();
+                    return new List<HistoryModel>();
                 }
 
-                var response = await _httpClient.GetAsync($"/rest/v1/Savings?UserID=eq.{user.UserID}&select=*&order=created_at.desc&limit={count}");
+                var response = await _httpClient.GetAsync($"/rest/v1/Histories?UserID=eq.{user.UserID}&select=*&order=created_at.desc&limit={count}");
                 response.EnsureSuccessStatusCode();
                 var json = await response.Content.ReadAsStringAsync();
-                return JsonSerializer.Deserialize<List<Savings>>(json) ?? new List<Savings>();
+                return JsonSerializer.Deserialize<List<HistoryModel>>(json) ?? new List<HistoryModel>();
             }
             catch (Exception)
             {
-                return new List<Savings>();
+                return new List<HistoryModel>();
             }
         }
 
-        public async Task<List<Savings>> GetTransactionsByDateRangeAsync(string userEmail, DateTime startDate, DateTime endDate)
+        public async Task<List<HistoryModel>> GetTransactionsByDateRangeAsync(string userEmail, DateTime startDate, DateTime endDate)
         {
             try
             {
@@ -175,47 +236,39 @@ namespace MoneyWise.Services
                 
                 if (user == null)
                 {
-                    return new List<Savings>();
+                    return new List<HistoryModel>();
                 }
 
                 var startDateStr = startDate.ToString("yyyy-MM-dd");
                 var endDateStr = endDate.ToString("yyyy-MM-dd");
                 
-                var response = await _httpClient.GetAsync($"/rest/v1/Savings?UserID=eq.{user.UserID}&created_at=gte.{startDateStr}&created_at=lte.{endDateStr}&select=*&order=created_at.desc");
+                var response = await _httpClient.GetAsync($"/rest/v1/Histories?UserID=eq.{user.UserID}&created_at=gte.{startDateStr}&created_at=lte.{endDateStr}&select=*&order=created_at.desc");
                 response.EnsureSuccessStatusCode();
                 var json = await response.Content.ReadAsStringAsync();
-                return JsonSerializer.Deserialize<List<Savings>>(json) ?? new List<Savings>();
+                return JsonSerializer.Deserialize<List<HistoryModel>>(json) ?? new List<HistoryModel>();
             }
             catch (Exception)
             {
-                return new List<Savings>();
+                return new List<HistoryModel>();
             }
         }
 
-        public async Task<TransactionStatistics> GetTransactionStatisticsAsync(string userEmail, DateTime? startDate = null, DateTime? endDate = null)
+        public async Task<TransactionStatistics> GetTransactionStatisticsAsync(string userEmail)
         {
             try
             {
-                var transactions = await GetUserTransactionsAsync(userEmail);
+                var histories = await GetUserTransactionsAsync(userEmail);
                 
-                if (startDate.HasValue && endDate.HasValue)
-                {
-                    transactions = transactions.Where(t => t.created_at >= startDate && t.created_at <= endDate).ToList();
-                }
-
-                var deposits = transactions.Where(t => t.Amount >= 0).ToList();
-                var withdrawals = transactions.Where(t => t.Amount < 0).ToList();
+                var deposits = histories.Where(h => h.Type == "deposit").ToList();
+                var withdrawals = histories.Where(h => h.Type == "withdrawal").ToList();
 
                 return new TransactionStatistics
                 {
-                    TotalTransactions = transactions.Count,
-                    TotalDeposits = (float)deposits.Sum(t => t.Amount),
-                    TotalWithdrawals = (float)Math.Abs(withdrawals.Sum(t => t.Amount)),
-                    NetBalance = (float)transactions.Sum(t => t.Amount),
-                    AverageDeposit = deposits.Any() ? (float)deposits.Average(t => t.Amount) : 0,
-                    AverageWithdrawal = withdrawals.Any() ? (float)Math.Abs(withdrawals.Average(t => t.Amount)) : 0,
-                    LargestDeposit = deposits.Any() ? (float)deposits.Max(t => t.Amount) : 0,
-                    LargestWithdrawal = withdrawals.Any() ? (float)Math.Abs(withdrawals.Min(t => t.Amount)) : 0
+                    TotalTransactions = histories.Count,
+                    TotalDeposits = deposits.Sum(h => h.Amount),
+                    TotalWithdrawals = withdrawals.Sum(h => h.Amount),
+                    AverageDeposit = deposits.Any() ? deposits.Average(h => h.Amount) : 0,
+                    AverageWithdrawal = withdrawals.Any() ? withdrawals.Average(h => h.Amount) : 0
                 };
             }
             catch (Exception)
@@ -236,16 +289,16 @@ namespace MoneyWise.Services
                 for (int month = 1; month <= 12; month++)
                 {
                     var monthTransactions = yearTransactions.Where(t => t.created_at?.Month == month).ToList();
-                    var deposits = monthTransactions.Where(t => t.Amount >= 0).Sum(t => t.Amount);
-                    var withdrawals = Math.Abs(monthTransactions.Where(t => t.Amount < 0).Sum(t => t.Amount));
+                    var deposits = monthTransactions.Where(t => t.Type == "deposit").Sum(t => t.Amount);
+                    var withdrawals = monthTransactions.Where(t => t.Type == "withdrawal").Sum(t => t.Amount);
                     
                     monthlySummaries.Add(new MonthlyTransactionSummary
                     {
                         Month = month,
                         MonthName = new DateTime(year, month, 1).ToString("MMMM"),
-                        TotalDeposits = (float)deposits,
-                        TotalWithdrawals = (float)withdrawals,
-                        NetAmount = (float)(deposits - withdrawals),
+                        TotalDeposits = deposits,
+                        TotalWithdrawals = withdrawals,
+                        NetAmount = deposits - withdrawals,
                         TransactionCount = monthTransactions.Count
                     });
                 }
@@ -280,12 +333,12 @@ namespace MoneyWise.Services
                     // Apply amount range filter
                     if (filter.MinAmount.HasValue)
                     {
-                        transactions = transactions.Where(t => Math.Abs((float)t.Amount) >= filter.MinAmount.Value).ToList();
+                        transactions = transactions.Where(t => t.Amount >= filter.MinAmount.Value).ToList();
                     }
                     
                     if (filter.MaxAmount.HasValue)
                     {
-                        transactions = transactions.Where(t => Math.Abs((float)t.Amount) <= filter.MaxAmount.Value).ToList();
+                        transactions = transactions.Where(t => t.Amount <= filter.MaxAmount.Value).ToList();
                     }
 
                     // Apply transaction type filter
@@ -293,11 +346,11 @@ namespace MoneyWise.Services
                     {
                         if (filter.TransactionType.ToLower() == "deposit")
                         {
-                            transactions = transactions.Where(t => t.Amount >= 0).ToList();
+                            transactions = transactions.Where(t => t.Type == "deposit").ToList();
                         }
                         else if (filter.TransactionType.ToLower() == "withdrawal")
                         {
-                            transactions = transactions.Where(t => t.Amount < 0).ToList();
+                            transactions = transactions.Where(t => t.Type == "withdrawal").ToList();
                         }
                     }
                 }
@@ -315,7 +368,7 @@ namespace MoneyWise.Services
             {
                 return new TransactionHistoryResponse
                 {
-                    Transactions = new List<Savings>(),
+                    Transactions = new List<HistoryModel>(),
                     Statistics = new TransactionStatistics(),
                     TotalCount = 0
                 };
@@ -357,7 +410,7 @@ namespace MoneyWise.Services
 
     public class TransactionHistoryResponse
     {
-        public List<Savings> Transactions { get; set; } = new List<Savings>();
+        public List<HistoryModel> Transactions { get; set; } = new List<HistoryModel>();
         public TransactionStatistics Statistics { get; set; } = new TransactionStatistics();
         public int TotalCount { get; set; }
     }

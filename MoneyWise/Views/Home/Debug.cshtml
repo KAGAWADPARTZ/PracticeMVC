@@ -1,0 +1,84 @@
+@{
+    ViewData["Title"] = "Debug Insertion";
+}
+
+<div class="container-fluid">
+    <h1 class="h3 mb-4 text-gray-800">Debug Insertion Test</h1>
+    
+    <div class="row">
+        <div class="col-lg-6">
+            <div class="card shadow mb-4">
+                <div class="card-header py-3">
+                    <h6 class="m-0 font-weight-bold text-primary">Test History Insertion</h6>
+                </div>
+                <div class="card-body">
+                    <form id="debugForm">
+                        <div class="form-group">
+                            <label for="testAmount">Amount</label>
+                            <input type="number" class="form-control" id="testAmount" value="100" step="0.01" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="testAction">Action</label>
+                            <select class="form-control" id="testAction" required>
+                                <option value="deposit">Deposit</option>
+                                <option value="withdraw">Withdraw</option>
+                            </select>
+                        </div>
+                        <button type="submit" class="btn btn-primary">Test Insertion</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-lg-6">
+            <div class="card shadow mb-4">
+                <div class="card-header py-3">
+                    <h6 class="m-0 font-weight-bold text-primary">Debug Results</h6>
+                </div>
+                <div class="card-body">
+                    <div id="debugResults" class="alert alert-info" style="display: none;">
+                        <h6>Debug Information:</h6>
+                        <ul id="debugList"></ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+document.getElementById('debugForm').addEventListener('submit', function(e) {
+    e.preventDefault();
+    
+    const amount = parseFloat(document.getElementById('testAmount').value);
+    const action = document.getElementById('testAction').value;
+    
+    fetch('/Home/DebugInsertion', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+            savingsAmount: amount, 
+            action: action 
+        })
+    })
+    .then(res => res.json())
+    .then(data => {
+        const resultsDiv = document.getElementById('debugResults');
+        const debugList = document.getElementById('debugList');
+        
+        debugList.innerHTML = '';
+        data.debugInfo.forEach(info => {
+            const li = document.createElement('li');
+            li.textContent = info;
+            debugList.appendChild(li);
+        });
+        
+        resultsDiv.className = data.success ? 'alert alert-success' : 'alert alert-danger';
+        resultsDiv.style.display = 'block';
+    })
+    .catch(err => {
+        console.error('Error:', err);
+        alert('Error testing insertion: ' + err.message);
+    });
+});
+</script>

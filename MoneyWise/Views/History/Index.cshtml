@@ -94,7 +94,7 @@
                                     }
                                 </td>
                                 <td class="@(history.Type == "deposit" ? "text-success" : "text-danger")">
-                                    <strong>₱@history.Amount.Sum().ToString("F2")</strong>
+                                    <strong>₱@history.Amount.ToString("F2")</strong>
                                     @if (history.Type == "deposit")
                                     {
                                         <i class="fas fa-plus-circle text-success ml-1"></i>
@@ -172,7 +172,7 @@
                             Total Deposits
                         </div>
                         <div class="h5 mb-0 font-weight-bold text-gray-800" id="totalDeposits">
-                            ₱@(Model?.Where(h => h.Type == "deposit").Sum(h => h.Amount.Sum()).ToString("F2") ?? "0.00")
+                            ₱@(Model?.Where(h => h.Type == "deposit").Sum(h => h.Amount).ToString("F2") ?? "0.00")
                         </div>
                     </div>
                     <div class="col-auto">
@@ -192,7 +192,7 @@
                             Total Withdrawals
                         </div>
                         <div class="h5 mb-0 font-weight-bold text-gray-800" id="totalWithdrawals">
-                            ₱@(Model?.Where(h => h.Type == "withdrawal").Sum(h => h.Amount.Sum()).ToString("F2") ?? "0.00")
+                            ₱@(Model?.Where(h => h.Type == "withdrawal").Sum(h => h.Amount).ToString("F2") ?? "0.00")
                         </div>
                     </div>
                     <div class="col-auto">
@@ -212,7 +212,7 @@
                             Net Balance
                         </div>
                         <div class="h5 mb-0 font-weight-bold text-gray-800" id="netBalance">
-                            ₱@((Model?.Where(h => h.Type == "deposit").Sum(h => h.Amount.Sum()) ?? 0) - (Model?.Where(h => h.Type == "withdrawal").Sum(h => h.Amount.Sum()) ?? 0)).ToString("F2")
+                            ₱@((Model?.Where(h => h.Type == "deposit").Sum(h => h.Amount) ?? 0) - (Model?.Where(h => h.Type == "withdrawal").Sum(h => h.Amount) ?? 0)).ToString("F2")
                         </div>
                     </div>
                     <div class="col-auto">
