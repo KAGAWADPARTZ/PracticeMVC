@@ -14,6 +14,15 @@
         <button type="button" class="btn btn-primary btn-sm" onclick="refreshHistory()">
             <i class="fas fa-sync-alt"></i> Refresh
         </button>
+        <button type="button" class="btn btn-info btn-sm" onclick="testDatabaseConnection()">
+            <i class="fas fa-database"></i> Test DB Connection
+        </button>
+        <button type="button" class="btn btn-warning btn-sm" onclick="checkAvailableTables()">
+            <i class="fas fa-list"></i> Check Tables
+        </button>
+        <button type="button" class="btn btn-success btn-sm" onclick="showCreateHistoryForm()">
+            <i class="fas fa-plus"></i> Add History
+        </button>
         <a href="@Url.Action("Index", "Home")" class="btn btn-secondary btn-sm">
             <i class="fas fa-arrow-left"></i> Back to Dashboard
         </a>
@@ -265,5 +274,147 @@
             // Implementation for printing
             window.print();
         }
+
+        function testDatabaseConnection() {
+            // Show loading state
+            const button = event.target;
+            const originalText = button.innerHTML;
+            button.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Testing...';
+            button.disabled = true;
+
+            fetch('/History/TestDatabaseConnection')
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        alert('Database connection test successful!\n\n' + 
+                              'Connection: ✓ Connected\n' +
+                              'Histories table: ✓ Exists\n' +
+                              'Timestamp: ' + new Date(data.data.timestamp).toLocaleString());
+                    } else {
+                        alert('Database connection test failed!\n\n' + 
+                              'Error: ' + data.message + '\n\n' +
+                              'Please check your Supabase configuration and table structure.');
+                    }
+                })
+                .catch(error => {
+                    console.error('Error testing database connection:', error);
+                    alert('Error testing database connection. Please check the console for details.');
+                })
+                .finally(() => {
+                    // Restore button state
+                    button.innerHTML = originalText;
+                    button.disabled = false;
+                });
+        }
+
+        function checkAvailableTables() {
+            // Show loading state
+            const button = event.target;
+            const originalText = button.innerHTML;
+            button.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Checking...';
+            button.disabled = true;
+
+            fetch('/History/GetAvailableTables')
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        const tables = data.data.tables;
+                        const count = data.data.count;
+                        alert(`Available Tables (${count}):\n\n${tables.join('\n')}`);
+                    } else {
+                        alert('Error checking available tables:\n' + data.message);
+                    }
+                })
+                .catch(error => {
+                    console.error('Error checking available tables:', error);
+                    alert('Error checking available tables. Please check the console for details.');
+                })
+                .finally(() => {
+                    // Restore button state
+                    button.innerHTML = originalText;
+                    button.disabled = false;
+                });
+        }
+
+        function showCreateHistoryForm() {
+            $('#historyModalBody').html(`
+                <form id="createHistoryForm">
+                    <div class="form-group">
+                        <label for="historyType">Transaction Type:</label>
+                        <select class="form-control" id="historyType" required>
+                            <option value="deposit">Deposit</option>
+                            <option value="withdrawal">Withdrawal</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="historyAmount">Amount:</label>
+                        <input type="number" class="form-control" id="historyAmount" step="0.01" min="0.01" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="historyDescription">Description (Optional):</label>
+                        <input type="text" class="form-control" id="historyDescription" placeholder="Enter description...">
+                    </div>
+                    <div class="form-group">
+                        <label for="historyDate">Date:</label>
+                        <input type="datetime-local" class="form-control" id="historyDate" required>
+                    </div>
+                    <button type="submit" class="btn btn-primary">Create History</button>
+                </form>
+            `);
+            $('#historyModalLabel').text('Create New Transaction History');
+            $('#historyModal').modal('show');
+            
+            // Set default date to current date and time
+            const now = new Date();
+            const year = now.getFullYear();
+            const month = String(now.getMonth() + 1).padStart(2, '0');
+            const day = String(now.getDate()).padStart(2, '0');
+            const hours = String(now.getHours()).padStart(2, '0');
+            const minutes = String(now.getMinutes()).padStart(2, '0');
+            document.getElementById('historyDate').value = `${year}-${month}-${day}T${hours}:${minutes}`;
+        }
+
+        // Handle form submission with event delegation
+        $(document).on('submit', '#createHistoryForm', function(e) {
+            e.preventDefault();
+            
+            const historyType = $('#historyType').val();
+            const historyAmount = $('#historyAmount').val();
+            const historyDescription = $('#historyDescription').val();
+            const historyDate = $('#historyDate').val();
+
+            if (!historyAmount || !historyDate) {
+                alert('Amount and Date are required.');
+                return;
+            }
+
+            const data = {
+                Action: historyType,
+                Amount: parseFloat(historyAmount),
+                Description: historyDescription
+            };
+
+            fetch('/History/CreateTransactionHistory', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(data)
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    alert('Transaction history created successfully!');
+                    $('#historyModal').modal('hide');
+                    location.reload(); // Refresh the page to show the new history
+                } else {
+                    alert('Error creating transaction history: ' + data.message);
+                }
+            })
+            .catch(error => {
+                console.error('Error creating transaction history:', error);
+                alert('Error creating transaction history. Please check the console for details.');
+            });
+        });
     </script>
 }

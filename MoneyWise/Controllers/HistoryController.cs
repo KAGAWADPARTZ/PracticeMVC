@@ -122,6 +122,152 @@ namespace MoneyWise.Controllers
                 return HandleException(ex, "retrieving transaction history summary");
             }
         }
+
+        [HttpGet]
+        public async Task<IActionResult> TestDatabaseConnection()
+        {
+            try
+            {
+                var sessionResponse = await ValidateSessionAndReturnResponseAsync();
+                if (sessionResponse != null) return sessionResponse;
+
+                var authResult = ValidateAuthentication();
+                if (authResult != null) return authResult;
+
+                // Get the SupabaseService from the HistoryService
+                var supabaseService = HttpContext.RequestServices.GetService<SupabaseService>();
+                if (supabaseService == null)
+                {
+                    return JsonError("SupabaseService not available");
+                }
+
+                var (isConnected, tableExists, errorMessage) = await supabaseService.TestDatabaseConnectionAsync();
+                
+                var result = new
+                {
+                    isConnected,
+                    tableExists,
+                    errorMessage,
+                    timestamp = DateTime.UtcNow
+                };
+
+                if (isConnected && tableExists)
+                {
+                    return JsonSuccess(result, "Database connection test successful");
+                }
+                else
+                {
+                    return JsonError($"Database connection test failed: {errorMessage}");
+                }
+            }
+            catch (Exception ex)
+            {
+                return HandleException(ex, "testing database connection");
+            }
+        }
+
+        [HttpGet]
+        public async Task<IActionResult> GetAvailableTables()
+        {
+            try
+            {
+                var sessionResponse = await ValidateSessionAndReturnResponseAsync();
+                if (sessionResponse != null) return sessionResponse;
+
+                var authResult = ValidateAuthentication();
+                if (authResult != null) return authResult;
+
+                // Get the SupabaseService from the HistoryService
+                var supabaseService = HttpContext.RequestServices.GetService<SupabaseService>();
+                if (supabaseService == null)
+                {
+                    return JsonError("SupabaseService not available");
+                }
+
+                var availableTables = await supabaseService.GetAvailableTablesAsync();
+                
+                var result = new
+                {
+                    tables = availableTables,
+                    count = availableTables.Count,
+                    timestamp = DateTime.UtcNow
+                };
+
+                return JsonSuccess(result, $"Found {availableTables.Count} accessible tables");
+            }
+            catch (Exception ex)
+            {
+                return HandleException(ex, "getting available tables");
+            }
+        }
+
+        [HttpPost]
+        public async Task<IActionResult> CreateTransactionHistory([FromBody] TransactionRequest request)
+        {
+            try
+            {
+                var sessionResponse = await ValidateSessionAndReturnResponseAsync();
+                if (sessionResponse != null) return sessionResponse;
+
+                var authResult = ValidateAuthentication();
+                if (authResult != null) return authResult;
+
+                var userEmail = GetCurrentUserEmail();
+                if (string.IsNullOrEmpty(userEmail))
+                {
+                    return JsonError("User not authenticated");
+                }
+
+                var (success, message) = await _historyService.CreateTransactionHistoryAsync(userEmail, request);
+                
+                if (success)
+                {
+                    return JsonSuccess(new { }, message);
+                }
+                else
+                {
+                    return JsonError(message);
+                }
+            }
+            catch (Exception ex)
+            {
+                return HandleException(ex, "creating transaction history");
+            }
+        }
+
+        [HttpPost]
+        public async Task<IActionResult> CreateCustomHistory([FromBody] HistoryRequest request)
+        {
+            try
+            {
+                var sessionResponse = await ValidateSessionAndReturnResponseAsync();
+                if (sessionResponse != null) return sessionResponse;
+
+                var authResult = ValidateAuthentication();
+                if (authResult != null) return authResult;
+
+                var userEmail = GetCurrentUserEmail();
+                if (string.IsNullOrEmpty(userEmail))
+                {
+                    return JsonError("User not authenticated");
+                }
+
+                var success = await _historyService.CreateHistoryAsync(userEmail, request);
+                
+                if (success)
+                {
+                    return JsonSuccess(new { }, "Custom history record created successfully");
+                }
+                else
+                {
+                    return JsonError("Failed to create custom history record");
+                }
+            }
+            catch (Exception ex)
+            {
+                return HandleException(ex, "creating custom history record");
+            }
+        }
     }
 }
 

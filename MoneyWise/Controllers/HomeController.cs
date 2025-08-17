@@ -166,6 +166,163 @@ namespace MoneyWise.Controllers
             }
         }
 
+        [HttpPost]
+        public async Task<IActionResult> DebugHistoryInsertion([FromBody] SavingsRequest request)
+        {
+            try
+            {
+                var debugInfo = new List<string>();
+                debugInfo.Add("=== HISTORY INSERTION DEBUG START ===");
+                
+                // Step 1: Check session
+                var sessionResponse = await ValidateSessionAndReturnResponseAsync();
+                if (sessionResponse != null) 
+                {
+                    debugInfo.Add("❌ Session validation failed");
+                    return Json(new { success = false, debugInfo });
+                }
+                debugInfo.Add("✅ Session validation passed");
+
+                // Step 2: Check authentication
+                var authResult = ValidateAuthentication();
+                if (authResult != null) 
+                {
+                    debugInfo.Add("❌ Authentication failed");
+                    return Json(new { success = false, debugInfo });
+                }
+                debugInfo.Add("✅ Authentication passed");
+
+                // Step 3: Get user email
+                var userEmail = GetCurrentUserEmail();
+                if (string.IsNullOrEmpty(userEmail))
+                {
+                    debugInfo.Add("❌ User email is null or empty");
+                    return Json(new { success = false, debugInfo });
+                }
+                debugInfo.Add($"✅ User email: {userEmail}");
+
+                // Step 4: Get user from database
+                var users = await _userRepository.GetAllUsers();
+                var user = users.FirstOrDefault(u => u.Email == userEmail);
+                if (user == null)
+                {
+                    debugInfo.Add("❌ User not found in database");
+                    return Json(new { success = false, debugInfo });
+                }
+                debugInfo.Add($"✅ User found: ID={user.UserID}");
+
+                // Step 5: Test Supabase connectivity
+                debugInfo.Add("🔍 Testing Supabase connectivity...");
+                try
+                {
+                    var testResponse = await _supabaseService.GetAllSavingsAsync();
+                    debugInfo.Add($"✅ Supabase connectivity test passed. Found {testResponse?.Count ?? 0} savings records");
+                }
+                catch (Exception ex)
+                {
+                    debugInfo.Add($"❌ Supabase connectivity test failed: {ex.Message}");
+                    return Json(new { success = false, debugInfo });
+                }
+
+                // Step 6: Check existing histories for this user
+                debugInfo.Add("🔍 Checking existing histories...");
+                try
+                {
+                    var existingHistories = await _supabaseService.GetHistoriesByUserIdAsync(user.UserID);
+                    debugInfo.Add($"✅ Found {existingHistories?.Count ?? 0} existing history records for user");
+                }
+                catch (Exception ex)
+                {
+                    debugInfo.Add($"❌ Failed to get existing histories: {ex.Message}");
+                }
+
+                // Step 7: Create history record
+                debugInfo.Add("🔍 Creating history record...");
+                var history = new HistoryModel
+                {
+                    HistoryID = 0,
+                    UserID = user.UserID,
+                    Type = request.Action,
+                    Amount = (float)request.SavingsAmount,
+                    created_at = DateTime.UtcNow
+                };
+                
+                var historyJson = System.Text.Json.JsonSerializer.Serialize(history);
+                debugInfo.Add($"✅ History record created: {historyJson}");
+
+                // Step 8: Test JSON serialization
+                debugInfo.Add("🔍 Testing JSON serialization...");
+                try
+                {
+                    var testJson = System.Text.Json.JsonSerializer.Serialize(history);
+                    debugInfo.Add($"✅ JSON serialization successful: {testJson}");
+                }
+                catch (Exception ex)
+                {
+                    debugInfo.Add($"❌ JSON serialization failed: {ex.Message}");
+                    return Json(new { success = false, debugInfo });
+                }
+
+                // Step 9: Attempt history insertion
+                debugInfo.Add("🔍 Attempting history insertion...");
+                var result = await _supabaseService.CreateHistoryAsync(history);
+                debugInfo.Add($"{(result ? "✅" : "❌")} History insertion result: {result}");
+
+                // Step 10: Verify insertion if successful
+                if (result)
+                {
+                    debugInfo.Add("🔍 Verifying insertion...");
+                    try
+                    {
+                        var updatedHistories = await _supabaseService.GetHistoriesByUserIdAsync(user.UserID);
+                        var newCount = updatedHistories?.Count ?? 0;
+                        debugInfo.Add($"✅ Verification successful. Total histories: {newCount}");
+                    }
+                    catch (Exception ex)
+                    {
+                        debugInfo.Add($"⚠️ Verification failed: {ex.Message}");
+                    }
+                }
+
+                debugInfo.Add("=== HISTORY INSERTION DEBUG END ===");
+                return Json(new { success = result, debugInfo });
+            }
+            catch (Exception ex)
+            {
+                var debugInfo = new List<string> 
+                { 
+                    "=== HISTORY INSERTION DEBUG ERROR ===",
+                    $"❌ Exception: {ex.Message}",
+                    $"❌ StackTrace: {ex.StackTrace}",
+                    "=== HISTORY INSERTION DEBUG END ==="
+                };
+                return Json(new { success = false, debugInfo });
+            }
+        }
+
+        [HttpGet]
+        public IActionResult GetCurrentUserInfo()
+        {
+            try
+            {
+                var userEmail = GetCurrentUserEmail();
+                var isAuthenticated = !string.IsNullOrEmpty(userEmail);
+                
+                return Json(new { 
+                    success = true, 
+                    userInfo = new { 
+                        email = userEmail, 
+                        userId = 0, // Will be retrieved from database if needed
+                        isAuthenticated = isAuthenticated 
+                    } 
+                });
+            }
+            catch (Exception ex)
+            {
+                return Json(new { success = false, message = ex.Message });
+            }
+        }
+
         [HttpGet]
         public IActionResult Debug()
         {
@@ -310,6 +467,87 @@ namespace MoneyWise.Controllers
             catch (Exception ex)
             {
                 return Json(new { success = false, debugInfo = new List<string> { $"Exception: {ex.Message}", $"StackTrace: {ex.StackTrace}" } });
+            }
+        }
+
+        [HttpGet]
+        public async Task<IActionResult> DebugDatabaseSchema()
+        {
+            try
+            {
+                var debugInfo = new List<string>();
+                debugInfo.Add("=== DATABASE SCHEMA DEBUG START ===");
+                
+                // Test 1: Get all savings records
+                debugInfo.Add("🔍 Testing Savings table...");
+                try
+                {
+                    var savingsResponse = await _supabaseService.GetAllSavingsAsync();
+                    debugInfo.Add($"✅ Savings table accessible. Found {savingsResponse?.Count ?? 0} records");
+                    
+                    if (savingsResponse != null && savingsResponse.Any())
+                    {
+                        var sample = savingsResponse.First();
+                        var savingsJson = System.Text.Json.JsonSerializer.Serialize(sample);
+                        debugInfo.Add($"✅ Sample savings record: {savingsJson}");
+                    }
+                }
+                catch (Exception ex)
+                {
+                    debugInfo.Add($"❌ Savings table error: {ex.Message}");
+                }
+
+                // Test 2: Get all histories records
+                debugInfo.Add("🔍 Testing Histories table...");
+                try
+                {
+                    var historiesResponse = await _supabaseService.GetAllHistoriesAsync();
+                    debugInfo.Add($"✅ Histories table accessible. Found {historiesResponse?.Count ?? 0} records");
+                    
+                    if (historiesResponse != null && historiesResponse.Any())
+                    {
+                        var sample = historiesResponse.First();
+                        var historiesJson = System.Text.Json.JsonSerializer.Serialize(sample);
+                        debugInfo.Add($"✅ Sample history record: {historiesJson}");
+                    }
+                }
+                catch (Exception ex)
+                {
+                    debugInfo.Add($"❌ Histories table error: {ex.Message}");
+                }
+
+                // Test 3: Get all users
+                debugInfo.Add("🔍 Testing Users table...");
+                try
+                {
+                    var usersResponse = await _userRepository.GetAllUsers();
+                    debugInfo.Add($"✅ Users table accessible. Found {usersResponse?.Count ?? 0} records");
+                    
+                    if (usersResponse != null && usersResponse.Any())
+                    {
+                        var sample = usersResponse.First();
+                        var usersJson = System.Text.Json.JsonSerializer.Serialize(sample);
+                        debugInfo.Add($"✅ Sample user record: {usersJson}");
+                    }
+                }
+                catch (Exception ex)
+                {
+                    debugInfo.Add($"❌ Users table error: {ex.Message}");
+                }
+
+                debugInfo.Add("=== DATABASE SCHEMA DEBUG END ===");
+                return Json(new { success = true, debugInfo });
+            }
+            catch (Exception ex)
+            {
+                var debugInfo = new List<string> 
+                { 
+                    "=== DATABASE SCHEMA DEBUG ERROR ===",
+                    $"❌ Exception: {ex.Message}",
+                    $"❌ StackTrace: {ex.StackTrace}",
+                    "=== DATABASE SCHEMA DEBUG END ==="
+                };
+                return Json(new { success = false, debugInfo });
             }
         }
     }

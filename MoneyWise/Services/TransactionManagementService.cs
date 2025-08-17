@@ -8,11 +8,13 @@ namespace MoneyWise.Services
     {
         private readonly SupabaseService _supabaseService;
         private readonly UserRepository _userRepository;
+        private readonly HistoryService _historyService;
 
-        public TransactionManagementService(SupabaseService supabaseService, UserRepository userRepository)
+        public TransactionManagementService(SupabaseService supabaseService, UserRepository userRepository, HistoryService historyService)
         {
             _supabaseService = supabaseService;
             _userRepository = userRepository;
+            _historyService = historyService;
         }
 
         /// <summary>
@@ -111,9 +113,9 @@ namespace MoneyWise.Services
                     created_at = DateTime.UtcNow
                 };
 
-                var historySuccess = await _supabaseService.CreateHistoryAsync(history);
+                var historySuccess = await _historyService.CreateTransactionHistoryAsync(userEmail, action, amount, description);
                 
-                if (historySuccess)
+                if (historySuccess.success)
                 {
                     var message = $"₱{Math.Abs(amount):F2} successfully {actionText}. New balance: ₱{newBalance:F2}";
                     if (!string.IsNullOrEmpty(description))
@@ -125,7 +127,7 @@ namespace MoneyWise.Services
                 else
                 {
                     // Transaction was updated but history failed - still return success for the transaction
-                    return (true, $"₱{Math.Abs(amount):F2} successfully {actionText}. New balance: ₱{newBalance:F2} (History recording failed)");
+                    return (true, $"₱{Math.Abs(amount):F2} successfully {actionText}. New balance: ₱{newBalance:F2} (History recording failed: {historySuccess.message})");
                 }
             }
             catch (Exception ex)
@@ -198,15 +200,7 @@ namespace MoneyWise.Services
         {
             try
             {
-                var users = await _userRepository.GetAllUsers();
-                var user = users.FirstOrDefault(u => u.Email == userEmail);
-                
-                if (user == null)
-                {
-                    return new List<HistoryModel>();
-                }
-
-                return await _supabaseService.GetHistoriesByUserIdAsync(user.UserID);
+                return await _historyService.GetUserHistoryAsync(userEmail);
             }
             catch (Exception)
             {
