@@ -8,7 +8,7 @@ namespace MoneyWise.Models
         public DateTime? created_at { get; set; }
         public int UserID { get; set; }
         public string? Type { get; set; }
-        public int Amount { get; set; } 
+        public decimal Amount { get; set; } // Changed from float to decimal to match transaction amounts
     }
 
     public class HistoryRequest
@@ -17,7 +17,7 @@ namespace MoneyWise.Models
         public string Type { get; set; } = string.Empty;
         
         [Required]
-        
-        public int Amount { get; set; }
+        [Range(0.01, double.MaxValue, ErrorMessage = "Amount must be greater than 0")]
+        public decimal Amount { get; set; } // Changed from float to decimal
     }
 }

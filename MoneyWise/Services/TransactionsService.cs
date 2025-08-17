@@ -179,7 +179,7 @@ namespace MoneyWise.Services
                     UserID = user.UserID,
                     Type = request.Action.ToLower() == "add" ? "deposit" : 
                            request.Action.ToLower() == "withdraw" ? "withdrawal" : request.Action,
-                    Amount = (float)request.Amount,
+                    Amount = request.Amount,
                     created_at = DateTime.UtcNow
                 };
 
@@ -380,22 +380,22 @@ namespace MoneyWise.Services
     public class TransactionStatistics
     {
         public int TotalTransactions { get; set; }
-        public float TotalDeposits { get; set; }
-        public float TotalWithdrawals { get; set; }
-        public float NetBalance { get; set; }
-        public float AverageDeposit { get; set; }
-        public float AverageWithdrawal { get; set; }
-        public float LargestDeposit { get; set; }
-        public float LargestWithdrawal { get; set; }
+        public decimal TotalDeposits { get; set; }
+        public decimal TotalWithdrawals { get; set; }
+        public decimal NetBalance { get; set; }
+        public decimal AverageDeposit { get; set; }
+        public decimal AverageWithdrawal { get; set; }
+        public decimal LargestDeposit { get; set; }
+        public decimal LargestWithdrawal { get; set; }
     }
 
     public class MonthlyTransactionSummary
     {
         public int Month { get; set; }
         public string MonthName { get; set; } = string.Empty;
-        public float TotalDeposits { get; set; }
-        public float TotalWithdrawals { get; set; }
-        public float NetAmount { get; set; }
+        public decimal TotalDeposits { get; set; }
+        public decimal TotalWithdrawals { get; set; }
+        public decimal NetAmount { get; set; }
         public int TransactionCount { get; set; }
     }
 
@@ -403,8 +403,8 @@ namespace MoneyWise.Services
     {
         public DateTime? StartDate { get; set; }
         public DateTime? EndDate { get; set; }
-        public float? MinAmount { get; set; }
-        public float? MaxAmount { get; set; }
+        public decimal? MinAmount { get; set; }
+        public decimal? MaxAmount { get; set; }
         public string? TransactionType { get; set; } // "deposit" or "withdrawal"
     }
 

@@ -243,7 +243,7 @@ namespace MoneyWise.Controllers
                     HistoryID = 0,
                     UserID = user.UserID,
                     Type = request.Action,
-                    Amount = (float)request.SavingsAmount,
+                    Amount = request.SavingsAmount,
                     created_at = DateTime.UtcNow
                 };
                 
@@ -454,7 +454,7 @@ namespace MoneyWise.Controllers
                     HistoryID = 0,
                     UserID = user.UserID,
                     Type = request.Action,
-                    Amount = (float)request.SavingsAmount,
+                    // Amount = frequest.SavingsAmount,
                     created_at = DateTime.UtcNow
                 };
                 debugInfo.Add($"History record created: {System.Text.Json.JsonSerializer.Serialize(history)}");

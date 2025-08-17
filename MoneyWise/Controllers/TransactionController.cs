@@ -8,13 +8,13 @@ namespace MoneyWise.Controllers
     public class TransactionController : BaseController
     {
         private readonly TransactionService _transactionService;
-        private readonly TransactionManagementService _transactionManagementService;
+       
 
-        public TransactionController(TransactionService transactionService, TransactionManagementService transactionManagementService, ILogger<TransactionController> logger, LoginService loginService)
+        public TransactionController(TransactionService transactionService, ILogger<TransactionController> logger, LoginService loginService)
             : base(logger, loginService)
         {
             _transactionService = transactionService;
-            _transactionManagementService = transactionManagementService;
+           
         }
 
         public async Task<IActionResult> History()
@@ -176,8 +176,29 @@ namespace MoneyWise.Controllers
                 var authResult = ValidateAuthentication();
                 if (authResult != null) return authResult;
 
-                var result = await _transactionManagementService.ProcessTransactionAsync(GetCurrentUserEmail(), request);
-                return Json(new { success = result.success, message = result.message });
+                // Get the HistoryService from the service provider
+                var historyService = HttpContext.RequestServices.GetService<HistoryService>();
+                if (historyService == null)
+                {
+                    return JsonError("HistoryService not available");
+                }
+
+                var userEmail = GetCurrentUserEmail();
+                if (string.IsNullOrEmpty(userEmail))
+                {
+                    return JsonError("User not authenticated");
+                }
+
+                var (success, message) = await historyService.CreateTransactionHistoryAsync(userEmail, request);
+                
+                if (success)
+                {
+                    return JsonSuccess(new { }, message);
+                }
+                else
+                {
+                    return JsonError(message);
+                }
             }
             catch (Exception ex)
             {
