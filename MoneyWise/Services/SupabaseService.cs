@@ -246,17 +246,39 @@ namespace MoneyWise.Services
 
         public async Task<bool> CreateHistoryAsync(HistoryModel history)
         {
-            var json = JsonSerializer.Serialize(history);
-            Console.WriteLine($"JSON being sent to Histories table: {json}");
+            try
+            {
+                // Create a custom JSON object that matches Supabase expectations
+                var historyData = new
+                {
+                    UserID = history.UserID,
+                    Type = history.Type,
+                    Amount = (double)history.Amount, // Convert to double to avoid decimal precision issues
+                    created_at = history.created_at?.ToString("yyyy-MM-ddTHH:mm:ss.fffZ")
+                };
 
-            var content = new StringContent(json, Encoding.UTF8, "application/json");
-            var response = await _httpClient.PostAsync("/rest/v1/Histories", content);
+                var json = JsonSerializer.Serialize(historyData);
+                Console.WriteLine($"JSON being sent to Histories table: {json}");
 
-            var responseContent = await response.Content.ReadAsStringAsync();
-            Console.WriteLine($"Histories response status: {response.StatusCode}");
-            Console.WriteLine($"Histories response body: {responseContent}");
+                var content = new StringContent(json, Encoding.UTF8, "application/json");
+                var response = await _httpClient.PostAsync("/rest/v1/Histories", content);
 
-            return response.IsSuccessStatusCode;
+                var responseContent = await response.Content.ReadAsStringAsync();
+                Console.WriteLine($"Histories response status: {response.StatusCode}");
+                Console.WriteLine($"Histories response body: {responseContent}");
+
+                if (!response.IsSuccessStatusCode)
+                {
+                    Console.WriteLine($"Failed to create history record. Status: {response.StatusCode}, Content: {responseContent}");
+                }
+
+                return response.IsSuccessStatusCode;
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Exception in CreateHistoryAsync: {ex.Message}");
+                return false;
+            }
         }
 
         public async Task<bool> UpdateHistoryAsync(int historyId, HistoryModel history)
