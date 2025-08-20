@@ -29,26 +29,51 @@ function number_format(number, decimals, dec_point, thousands_sep) {
 
 // Area Chart Example
 var ctx = document.getElementById("myAreaChart");
-var myLineChart = new Chart(ctx, {
-  type: 'line',
-  data: {
-    labels: ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"],
-    datasets: [{
-      label: "Earnings",
-      lineTension: 0.3,
-      backgroundColor: "rgba(78, 115, 223, 0.05)",
-      borderColor: "rgba(78, 115, 223, 1)",
-      pointRadius: 3,
-      pointBackgroundColor: "rgba(78, 115, 223, 1)",
-      pointBorderColor: "rgba(78, 115, 223, 1)",
-      pointHoverRadius: 3,
-      pointHoverBackgroundColor: "rgba(78, 115, 223, 1)",
-      pointHoverBorderColor: "rgba(78, 115, 223, 1)",
-      pointHitRadius: 10,
-      pointBorderWidth: 2,
-      data: [0, 10000, 5000, 15000, 10000, 20000, 15000, 25000, 20000, 30000, 25000, 40000],
-    }],
-  },
+var myLineChart;
+
+// Function to load chart data from server
+async function loadChartData() {
+  try {
+    const response = await fetch('/Home/GetMonthlyEarningsChartData');
+    const result = await response.json();
+    
+    if (result.success) {
+      const chartData = result.data;
+      createChart(chartData.labels, chartData.data);
+    } else {
+      console.error('Failed to load chart data:', result.message);
+      // Fallback to empty data
+      createChart(["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"], new Array(12).fill(0));
+    }
+  } catch (error) {
+    console.error('Error loading chart data:', error);
+    // Fallback to empty data
+    createChart(["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"], new Array(12).fill(0));
+  }
+}
+
+// Function to create the chart
+function createChart(labels, data) {
+  myLineChart = new Chart(ctx, {
+    type: 'line',
+    data: {
+      labels: labels,
+      datasets: [{
+        label: "Total Earnings",
+        lineTension: 0.3,
+        backgroundColor: "rgba(78, 115, 223, 0.05)",
+        borderColor: "rgba(78, 115, 223, 1)",
+        pointRadius: 3,
+        pointBackgroundColor: "rgba(78, 115, 223, 1)",
+        pointBorderColor: "rgba(78, 115, 223, 1)",
+        pointHoverRadius: 3,
+        pointHoverBackgroundColor: "rgba(78, 115, 223, 1)",
+        pointHoverBorderColor: "rgba(78, 115, 223, 1)",
+        pointHitRadius: 10,
+        pointBorderWidth: 2,
+        data: data,
+      }],
+    },
   options: {
     maintainAspectRatio: false,
     layout: {
@@ -76,10 +101,10 @@ var myLineChart = new Chart(ctx, {
         ticks: {
           maxTicksLimit: 5,
           padding: 10,
-          // Include a dollar sign in the ticks
-          callback: function(value, index, values) {
-            return '$' + number_format(value);
-          }
+                  // Include a peso sign in the ticks
+        callback: function(value, index, values) {
+          return '₱' + number_format(value);
+        }
         },
         gridLines: {
           color: "rgb(234, 236, 244)",
@@ -110,9 +135,14 @@ var myLineChart = new Chart(ctx, {
       callbacks: {
         label: function(tooltipItem, chart) {
           var datasetLabel = chart.datasets[tooltipItem.datasetIndex].label || '';
-          return datasetLabel + ': $' + number_format(tooltipItem.yLabel);
+          return datasetLabel + ': ₱' + number_format(tooltipItem.yLabel);
         }
       }
     }
   }
+});
+
+// Load chart data when the page loads
+document.addEventListener('DOMContentLoaded', function() {
+  loadChartData();
 });

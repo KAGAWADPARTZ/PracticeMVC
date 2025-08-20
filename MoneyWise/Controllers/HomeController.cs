@@ -123,6 +123,58 @@ namespace MoneyWise.Controllers
         }
 
         [HttpGet]
+        public async Task<IActionResult> GetMonthlyEarningsChartData()
+        {
+            try
+            {
+                var sessionResponse = await ValidateSessionAndReturnResponseAsync();
+                if (sessionResponse != null) return sessionResponse;
+
+                var authResult = ValidateAuthentication();
+                if (authResult != null) return authResult;
+
+                var userEmail = GetCurrentUserEmail();
+                if (string.IsNullOrEmpty(userEmail))
+                {
+                    return JsonSuccess(new { labels = new string[0], data = new decimal[0] });
+                }
+
+                // Get user's transaction history
+                var historyService = new HistoryService(_supabaseService, _userRepository);
+                var histories = await historyService.GetUserHistoryAsync(userEmail);
+
+                // Group by month and calculate total earnings (deposits only)
+                var monthlyEarnings = new Dictionary<string, decimal>();
+                var monthNames = new[] { "Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec" };
+
+                // Initialize all months with 0
+                for (int i = 0; i < 12; i++)
+                {
+                    monthlyEarnings[monthNames[i]] = 0;
+                }
+
+                // Calculate earnings for each month from user's transaction history
+                foreach (var history in histories.Where(h => h.Type == "deposit" && h.created_at.HasValue))
+                {
+                    var month = history.created_at.Value.ToString("MMM");
+                    if (monthlyEarnings.ContainsKey(month))
+                    {
+                        monthlyEarnings[month] += history.Amount;
+                    }
+                }
+
+                var labels = monthNames;
+                var data = monthNames.Select(month => monthlyEarnings[month]).ToArray();
+
+                return JsonSuccess(new { labels, data });
+            }
+            catch (Exception ex)
+            {
+                return HandleException(ex, "getting monthly earnings chart data");
+            }
+        }
+
+        [HttpGet]
         public async Task<IActionResult> GetSessionInfo()
         {
             try
