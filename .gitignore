@@ -3,6 +3,45 @@
 ##
 ## Get latest from https://github.com/github/gitignore/blob/master/VisualStudio.gitignore
 
+###############################################################################
+# ADDITIONAL IGNORE RULES FOR ASP.NET / VISUAL STUDIO PROJECTS
+###############################################################################
+
+# Build artifacts
+bin/
+obj/
+out/
+
+# Visual Studio Code settings
+.vscode/
+*.code-workspace
+
+
+.sln
+*.tlog
+*.cache
+
+# Local environment & secrets
+appsettings.Development.json
+secrets.json
+.env
+
+# NuGet packages (can be restored)
+*.nupkg
+*.snupkg
+*.nuspec
+packages/
+
+# Rider / Resharper
+.idea/
+_ReSharper*/
+*.DotSettings.user
+
+# Windows junk
+Thumbs.db
+desktop.ini
+
+
 # User-specific files
 *.rsuser
 *.suo
