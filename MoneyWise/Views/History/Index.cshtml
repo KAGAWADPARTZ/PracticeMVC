@@ -11,9 +11,12 @@
 <div class="d-sm-flex align-items-center justify-content-between mb-4">
     <h1 class="h3 mb-0 text-gray-800">Transaction History</h1>
     <div>
-        <button type="button" class="btn btn-primary btn-sm" onclick="refreshHistory()">
+        <button type="button" class="btn btn-primary btn-sm mr-2" onclick="refreshHistory()">
             <i class="fas fa-sync-alt"></i> Refresh
         </button>
+        <a href="@Url.Action("Index", "Budget")" class="btn btn-success btn-sm mr-2">
+            <i class="fas fa-chart-pie"></i> Budget Management
+        </a>
         <a href="@Url.Action("Index", "Home")" class="btn btn-secondary btn-sm">
             <i class="fas fa-arrow-left"></i> Back to Dashboard
         </a>
