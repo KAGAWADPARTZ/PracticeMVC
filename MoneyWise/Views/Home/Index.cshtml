@@ -10,8 +10,11 @@
         <button type="button" class="d-none d-sm-inline-block btn btn-sm btn-primary shadow-sm mr-2" data-toggle="modal" data-target="#savingsModal">
             <i class="fas fa-edit text-white-50"></i> Edit Savings
         </button>
-        <a href="@Url.Action("History", "Index")" class="d-none d-sm-inline-block btn btn-sm btn-info shadow-sm">
+        <a href="@Url.Action("Index", "History")" class="d-none d-sm-inline-block btn btn-sm btn-info shadow-sm mr-2">
             <i class="fas fa-history text-white-50"></i> View History
+        </a>
+        <a href="@Url.Action("Index", "Budget")" class="d-none d-sm-inline-block btn btn-sm btn-success shadow-sm">
+            <i class="fas fa-chart-pie text-white-50"></i> Budget Management
         </a>
     </div>
      <!-- <button type="button" class="d-none d-sm-inline-block btn btn-sm btn-primary shadow-sm" data-toggle="modal" data-target="#savingsModal">

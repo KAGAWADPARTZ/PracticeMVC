@@ -135,7 +135,6 @@ namespace MoneyWise.Services
             {
                 _logger.LogInformation("Creating new budget rule for user: {UserId}", budgetRule.UserID);
                 
-                // Set the updated timestamp
                 budgetRule.updated_at = DateTime.UtcNow;
                 
                 var json = JsonSerializer.Serialize(budgetRule);
@@ -174,7 +173,6 @@ namespace MoneyWise.Services
             {
                 _logger.LogInformation("Updating budget rule with ID: {Id}", budgetRule.BudgetRulesID);
                 
-                // Set the updated timestamp
                 budgetRule.updated_at = DateTime.UtcNow;
                 
                 var json = JsonSerializer.Serialize(budgetRule);
@@ -244,18 +242,15 @@ namespace MoneyWise.Services
             {
                 _logger.LogInformation("Upserting budget rule with ID: {Id}", budgetRule.BudgetRulesID);
                 
-                // Check if budget rule exists
                 var existingRule = await GetBudgetRuleByIdAsync(budgetRule.BudgetRulesID);
                 
                 if (existingRule != null)
                 {
-                    // Update existing rule
                     _logger.LogInformation("Budget rule exists, updating...");
                     return await UpdateBudgetRuleAsync(budgetRule);
                 }
                 else
                 {
-                    // Create new rule
                     _logger.LogInformation("Budget rule doesn't exist, creating new...");
                     return await CreateBudgetRuleAsync(budgetRule);
                 }
