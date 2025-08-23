@@ -44,7 +44,7 @@ namespace MoneyWise.Services
                 {
                     var errorContent = await response.Content.ReadAsStringAsync();
                     _logger.LogError("Supabase error: {Error}", errorContent);
-                    return new List<Savings>();
+                    return new List<BudgetRules>();
                 }
                 
                 var json = await response.Content.ReadAsStringAsync();
@@ -58,7 +58,7 @@ namespace MoneyWise.Services
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Exception in GetAllBudgetRulesAsync");
-                return new List<Savings>();
+                return new List<BudgetRules>();
             }
         }
 
@@ -125,7 +125,7 @@ namespace MoneyWise.Services
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Exception in GetBudgetRulesByUserAsync for UserID: {UserId}", userId);
-                return new List<Savings>();
+                return new List<BudgetRules>();
             }
         }
 
@@ -245,7 +245,7 @@ namespace MoneyWise.Services
                 _logger.LogInformation("Upserting budget rule with ID: {Id}", budgetRule.BudgetRulesID);
                 
                 // Check if budget rule exists
-                var existingRule = await GetBudgetRuleByIdAsync(budgetRule.BugetRulesID);
+                var existingRule = await GetBudgetRuleByIdAsync(budgetRule.BudgetRulesID);
                 
                 if (existingRule != null)
                 {
