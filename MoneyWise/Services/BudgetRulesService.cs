@@ -1,8 +1,7 @@
-using MoneyWise.Models;
-using Microsoft.Extensions.Logging;
 using System.Text;
 using System.Text.Json;
-using Microsoft.Extensions.Configuration;
+using MoneyWise.Models;
+using Microsoft.Extensions.Logging;
 
 namespace MoneyWise.Services
 {
@@ -28,228 +27,265 @@ namespace MoneyWise.Services
             _httpClient.DefaultRequestHeaders.Accept.Clear();
             _httpClient.DefaultRequestHeaders.Accept.Add(
                 new System.Net.Http.Headers.MediaTypeWithQualityHeaderValue("application/json"));
+
+            _logger.LogInformation("BudgetRulesService initialized with Supabase URL: {Url}", _supabaseUrl);
         }
 
-        public async Task<List<BudgetRulesModel>> GetUserBudgetRulesAsync(string userEmail)
+        public async Task<List<BudgetRules>> GetAllBudgetRulesAsync()
         {
             try
             {
-                _logger.LogInformation("Looking for budget rules for user: {UserEmail}", userEmail);
+                _logger.LogInformation("Calling Supabase API to get all budget rules...");
+                var response = await _httpClient.GetAsync("/rest/v1/BudgetRules?select=*");
                 
-                // First get the user ID from email
-                var userResponse = await _httpClient.GetAsync($"/rest/v1/Users?Email=eq.{Uri.EscapeDataString(userEmail)}&select=UserID");
-                if (!userResponse.IsSuccessStatusCode)
-                {
-                    _logger.LogWarning("Failed to get user ID for email: {UserEmail}", userEmail);
-                    return new List<BudgetRulesModel>();
-                }
-
-                var userJson = await userResponse.Content.ReadAsStringAsync();
-                var users = JsonSerializer.Deserialize<List<Users>>(userJson);
-                var user = users?.FirstOrDefault();
-
-                if (user == null)
-                {
-                    _logger.LogWarning("User not found for email: {UserEmail}", userEmail);
-                    return new List<BudgetRulesModel>();
-                }
-
-                // Now get budget rules for the user
-                var response = await _httpClient.GetAsync($"/rest/v1/BudgetRules?UserID=eq.{user.UserID}&select=*");
-                _logger.LogInformation("Budget rules response status: {StatusCode}", response.StatusCode);
-
+                _logger.LogInformation("Response status: {StatusCode}", response.StatusCode);
+                
                 if (!response.IsSuccessStatusCode)
                 {
                     var errorContent = await response.Content.ReadAsStringAsync();
-                    _logger.LogError("Failed to get budget rules. Status: {StatusCode}, Content: {Content}", response.StatusCode, errorContent);
-                    return new List<BudgetRulesModel>();
+                    _logger.LogError("Supabase error: {Error}", errorContent);
+                    return new List<BudgetRules>();
                 }
-
+                
                 var json = await response.Content.ReadAsStringAsync();
-                _logger.LogInformation("Budget rules response: {Json}", json);
-
-                var budgetRules = JsonSerializer.Deserialize<List<BudgetRulesModel>>(json);
-                return budgetRules ?? new List<BudgetRulesModel>();
+                _logger.LogInformation("Response JSON: {Json}", json);
+                
+                var budgetRules = JsonSerializer.Deserialize<List<BudgetRules>>(json);
+                _logger.LogInformation("Deserialized budget rules count: {Count}", budgetRules?.Count ?? 0);
+                
+                return budgetRules ?? new List<BudgetRules>();
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error retrieving budget rules for user {UserEmail}", userEmail);
-                return new List<BudgetRulesModel>();
+                _logger.LogError(ex, "Exception in GetAllBudgetRulesAsync");
+                return new List<BudgetRules>();
             }
         }
 
-        public async Task<BudgetRulesModel?> GetBudgetRuleByIdAsync(int userId)
+        public async Task<BudgetRules?> GetBudgetRuleByIdAsync(int budgetRuleId)
         {
             try
             {
-                var response = await _httpClient.GetAsync($"/rest/v1/BudgetRules?UserID=eq.{userId}&select=*&limit=1");
-                _logger.LogInformation("GetBudgetRuleByIdAsync response status: {StatusCode}", response.StatusCode);
-
+                _logger.LogInformation("Looking for budget rule with ID: {Id}", budgetRuleId);
+                var url = $"/rest/v1/BudgetRules?BudgetRulesID=eq.{budgetRuleId}&select=*";
+                _logger.LogInformation("Supabase URL: {Url}", url);
+                
+                var response = await _httpClient.GetAsync(url);
+                _logger.LogInformation("Response status: {StatusCode}", response.StatusCode);
+                
                 if (!response.IsSuccessStatusCode)
                 {
                     var errorContent = await response.Content.ReadAsStringAsync();
-                    _logger.LogError("Failed to get budget rule. Status: {StatusCode}, Content: {Content}", response.StatusCode, errorContent);
+                    _logger.LogError("Supabase error: {Error}", errorContent);
                     return null;
                 }
-
+                
                 var json = await response.Content.ReadAsStringAsync();
-                var budgetRules = JsonSerializer.Deserialize<List<BudgetRulesModel>>(json);
-                return budgetRules?.FirstOrDefault();
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Error retrieving budget rule for UserID {UserID}", userId);
-                return null;
-            }
-        }
-
-        public async Task<BudgetRulesModel> CreateBudgetRuleAsync(BudgetRulesModel budgetRule)
-        {
-            try
-            {
-                // Create a custom JSON object that matches Supabase expectations
-                var budgetData = new
-                {
-                    UserID = budgetRule.UserID,
-                    Savings = budgetRule.Savings,
-                    Needs = budgetRule.Needs,
-                    Wants = budgetRule.Wants,
-                    Amount = budgetRule.Amount,
-                    updated_at = DateTime.UtcNow.ToString("yyyy-MM-ddTHH:mm:ss.fffZ")
-                };
-
-                var json = JsonSerializer.Serialize(budgetData);
-                _logger.LogInformation("JSON being sent to BudgetRules table: {Json}", json);
-
-                var content = new StringContent(json, Encoding.UTF8, "application/json");
-                var response = await _httpClient.PostAsync("/rest/v1/BudgetRules", content);
-
-                var responseContent = await response.Content.ReadAsStringAsync();
-                _logger.LogInformation("BudgetRules create response status: {StatusCode}", response.StatusCode);
-                _logger.LogInformation("BudgetRules create response body: {Content}", responseContent);
-
-                if (!response.IsSuccessStatusCode)
-                {
-                    _logger.LogError("Failed to create budget rule. Status: {StatusCode}, Content: {Content}", response.StatusCode, responseContent);
-                    throw new Exception($"Failed to create budget rule: {responseContent}");
-                }
-
-                budgetRule.updated_at = DateTime.UtcNow;
+                _logger.LogInformation("Response JSON: {Json}", json);
+                
+                var budgetRules = JsonSerializer.Deserialize<List<BudgetRules>>(json);
+                var budgetRule = budgetRules?.FirstOrDefault();
+                _logger.LogInformation("Found budget rule: {Id}", budgetRule?.BudgetRulesID);
+                
                 return budgetRule;
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error creating budget rule for UserID {UserID}", budgetRule.UserID);
-                throw;
+                _logger.LogError(ex, "Exception in GetBudgetRuleByIdAsync for ID: {Id}", budgetRuleId);
+                return null;
             }
         }
 
-        public async Task<BudgetRulesModel?> UpdateBudgetRuleAsync(BudgetRulesModel budgetRule)
+        public async Task<List<BudgetRules>> GetBudgetRulesByUserAsync(int userId)
         {
             try
             {
-                // Create a custom JSON object that matches Supabase expectations
-                var budgetData = new
+                _logger.LogInformation("Looking for budget rules for user ID: {UserId}", userId);
+                var url = $"/rest/v1/BudgetRules?UserID=eq.{userId}&select=*";
+                _logger.LogInformation("Supabase URL: {Url}", url);
+                
+                var response = await _httpClient.GetAsync(url);
+                _logger.LogInformation("Response status: {StatusCode}", response.StatusCode);
+                
+                if (!response.IsSuccessStatusCode)
                 {
-                    Savings = budgetRule.Savings,
-                    Needs = budgetRule.Needs,
-                    Wants = budgetRule.Wants,
-                    Amount = budgetRule.Amount,
-                    updated_at = DateTime.UtcNow.ToString("yyyy-MM-ddTHH:mm:ss.fffZ")
-                };
+                    var errorContent = await response.Content.ReadAsStringAsync();
+                    _logger.LogError("Supabase error: {Error}", errorContent);
+                    return new List<BudgetRules>();
+                }
+                
+                var json = await response.Content.ReadAsStringAsync();
+                _logger.LogInformation("Response JSON: {Json}", json);
+                
+                var budgetRules = JsonSerializer.Deserialize<List<BudgetRules>>(json);
+                _logger.LogInformation("Found budget rules count: {Count}", budgetRules?.Count ?? 0);
+                
+                return budgetRules ?? new List<BudgetRules>();
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Exception in GetBudgetRulesByUserAsync for UserID: {UserId}", userId);
+                return new List<BudgetRules>();
+            }
+        }
 
-                var json = JsonSerializer.Serialize(budgetData);
-                _logger.LogInformation("JSON being sent to BudgetRules table for update: {Json}", json);
-
+        public async Task<BudgetRules?> CreateBudgetRuleAsync(BudgetRules budgetRule)
+        {
+            try
+            {
+                _logger.LogInformation("Creating new budget rule for user: {UserId}", budgetRule.UserID);
+                
+                // Set the updated timestamp
+                budgetRule.updated_at = DateTime.UtcNow;
+                
+                var json = JsonSerializer.Serialize(budgetRule);
+                _logger.LogInformation("JSON being sent: {Json}", json);
+                
                 var content = new StringContent(json, Encoding.UTF8, "application/json");
-                var request = new HttpRequestMessage(new HttpMethod("PATCH"), $"/rest/v1/BudgetRules?UserID=eq.{budgetRule.UserID}")
+                var response = await _httpClient.PostAsync("/rest/v1/BudgetRules", content);
+                
+                _logger.LogInformation("Response status: {StatusCode}", response.StatusCode);
+                
+                if (!response.IsSuccessStatusCode)
+                {
+                    var errorContent = await response.Content.ReadAsStringAsync();
+                    _logger.LogError("Supabase error: {Error}", errorContent);
+                    return null;
+                }
+                
+                var responseJson = await response.Content.ReadAsStringAsync();
+                _logger.LogInformation("Response JSON: {Json}", responseJson);
+                
+                var createdBudgetRule = JsonSerializer.Deserialize<BudgetRules>(responseJson);
+                _logger.LogInformation("Created budget rule with ID: {Id}", createdBudgetRule?.BudgetRulesID);
+                
+                return createdBudgetRule;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Exception in CreateBudgetRuleAsync");
+                return null;
+            }
+        }
+
+        public async Task<BudgetRules?> UpdateBudgetRuleAsync(BudgetRules budgetRule)
+        {
+            try
+            {
+                _logger.LogInformation("Updating budget rule with ID: {Id}", budgetRule.BudgetRulesID);
+                
+                // Set the updated timestamp
+                budgetRule.updated_at = DateTime.UtcNow;
+                
+                var json = JsonSerializer.Serialize(budgetRule);
+                _logger.LogInformation("JSON being sent: {Json}", json);
+                
+                var content = new StringContent(json, Encoding.UTF8, "application/json");
+                var request = new HttpRequestMessage(new HttpMethod("PATCH"), $"/rest/v1/BudgetRules?BudgetRulesID=eq.{budgetRule.BudgetRulesID}")
                 {
                     Content = content
                 };
                 var response = await _httpClient.SendAsync(request);
-
-                var responseContent = await response.Content.ReadAsStringAsync();
-                _logger.LogInformation("BudgetRules update response status: {StatusCode}", response.StatusCode);
-                _logger.LogInformation("BudgetRules update response body: {Content}", responseContent);
-
+                
+                _logger.LogInformation("Response status: {StatusCode}", response.StatusCode);
+                
                 if (!response.IsSuccessStatusCode)
                 {
-                    _logger.LogError("Failed to update budget rule. Status: {StatusCode}, Content: {Content}", response.StatusCode, responseContent);
+                    var errorContent = await response.Content.ReadAsStringAsync();
+                    _logger.LogError("Supabase error: {Error}", errorContent);
                     return null;
                 }
-
-                budgetRule.updated_at = DateTime.UtcNow;
-                return budgetRule;
+                
+                var responseJson = await response.Content.ReadAsStringAsync();
+                _logger.LogInformation("Response JSON: {Json}", responseJson);
+                
+                var updatedBudgetRule = JsonSerializer.Deserialize<BudgetRules>(responseJson);
+                _logger.LogInformation("Updated budget rule with ID: {Id}", updatedBudgetRule?.BudgetRulesID);
+                
+                return updatedBudgetRule;
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error updating budget rule for UserID {UserID}", budgetRule.UserID);
+                _logger.LogError(ex, "Exception in UpdateBudgetRuleAsync for ID: {Id}", budgetRule.BudgetRulesID);
                 return null;
             }
         }
 
-        public async Task<bool> DeleteBudgetRuleAsync(int userId)
+        public async Task<bool> DeleteBudgetRuleAsync(int budgetRuleId)
         {
             try
             {
-                var response = await _httpClient.DeleteAsync($"/rest/v1/BudgetRules?UserID=eq.{userId}");
-                _logger.LogInformation("BudgetRules delete response status: {StatusCode}", response.StatusCode);
-
+                _logger.LogInformation("Deleting budget rule with ID: {Id}", budgetRuleId);
+                
+                var response = await _httpClient.DeleteAsync($"/rest/v1/BudgetRules?BudgetRulesID=eq.{budgetRuleId}");
+                
+                _logger.LogInformation("Response status: {StatusCode}", response.StatusCode);
+                
                 if (!response.IsSuccessStatusCode)
                 {
                     var errorContent = await response.Content.ReadAsStringAsync();
-                    _logger.LogError("Failed to delete budget rule. Status: {StatusCode}, Content: {Content}", response.StatusCode, errorContent);
+                    _logger.LogError("Supabase error: {Error}", errorContent);
                     return false;
                 }
-
+                
+                _logger.LogInformation("Successfully deleted budget rule with ID: {Id}", budgetRuleId);
                 return true;
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error deleting budget rule for UserID {UserID}", userId);
+                _logger.LogError(ex, "Exception in DeleteBudgetRuleAsync for ID: {Id}", budgetRuleId);
                 return false;
             }
         }
 
-        public async Task<BudgetRulesModel?> UpsertBudgetRuleAsync(BudgetRulesModel budgetRule)
+        public async Task<BudgetRules?> UpsertBudgetRuleAsync(BudgetRules budgetRule)
         {
             try
             {
+                _logger.LogInformation("Upserting budget rule with ID: {Id}", budgetRule.BudgetRulesID);
+                
                 // Check if budget rule exists
-                var existingRule = await GetBudgetRuleByIdAsync(budgetRule.UserID);
-
+                var existingRule = await GetBudgetRuleByIdAsync(budgetRule.BudgetRulesID);
+                
                 if (existingRule != null)
                 {
                     // Update existing rule
+                    _logger.LogInformation("Budget rule exists, updating...");
                     return await UpdateBudgetRuleAsync(budgetRule);
                 }
                 else
                 {
                     // Create new rule
+                    _logger.LogInformation("Budget rule doesn't exist, creating new...");
                     return await CreateBudgetRuleAsync(budgetRule);
                 }
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error upserting budget rule for UserID {UserID}", budgetRule.UserID);
-                throw;
+                _logger.LogError(ex, "Exception in UpsertBudgetRuleAsync for ID: {Id}", budgetRule.BudgetRulesID);
+                return null;
             }
         }
 
-        public async Task<Dictionary<string, object>> GetBudgetSummaryAsync(string userEmail)
+        public async Task<Dictionary<string, object>> GetBudgetSummaryAsync(int userId)
         {
             try
             {
-                var budgetRules = await GetUserBudgetRulesAsync(userEmail);
+                _logger.LogInformation("Getting budget summary for user ID: {UserId}", userId);
+                
+                var budgetRules = await GetBudgetRulesByUserAsync(userId);
                 var summary = new Dictionary<string, object>();
 
                 if (budgetRules.Any())
                 {
-                    var budget = budgetRules.First();
-                    summary["TotalIncome"] = budget.Amount;
-                    summary["TotalSavings"] = budget.Savings;
-                    summary["TotalNeeds"] = budget.Needs;
-                    summary["TotalWants"] = budget.Wants;
+                    var latestRule = budgetRules.OrderByDescending(b => b.updated_at).First();
+                    summary["TotalIncome"] = latestRule.TotalAmount;
+                    summary["TotalSavings"] = latestRule.Savings;
+                    summary["TotalNeeds"] = latestRule.Needs;
+                    summary["TotalWants"] = latestRule.Wants;
+                    summary["SavingsPercentage"] = latestRule.TotalAmount > 0 ? (latestRule.Savings * 100.0 / latestRule.TotalAmount) : 0;
+                    summary["NeedsPercentage"] = latestRule.TotalAmount > 0 ? (latestRule.Needs * 100.0 / latestRule.TotalAmount) : 0;
+                    summary["WantsPercentage"] = latestRule.TotalAmount > 0 ? (latestRule.Wants * 100.0 / latestRule.TotalAmount) : 0;
                 }
                 else
                 {
@@ -257,20 +293,46 @@ namespace MoneyWise.Services
                     summary["TotalSavings"] = 0;
                     summary["TotalNeeds"] = 0;
                     summary["TotalWants"] = 0;
+                    summary["SavingsPercentage"] = 0;
+                    summary["NeedsPercentage"] = 0;
+                    summary["WantsPercentage"] = 0;
                 }
 
+                _logger.LogInformation("Budget summary calculated for user ID: {UserId}", userId);
                 return summary;
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error getting budget summary for user {UserEmail}", userEmail);
+                _logger.LogError(ex, "Exception in GetBudgetSummaryAsync for UserID: {UserId}", userId);
                 return new Dictionary<string, object>
                 {
                     ["TotalIncome"] = 0,
                     ["TotalSavings"] = 0,
                     ["TotalNeeds"] = 0,
-                    ["TotalWants"] = 0
+                    ["TotalWants"] = 0,
+                    ["SavingsPercentage"] = 0,
+                    ["NeedsPercentage"] = 0,
+                    ["WantsPercentage"] = 0
                 };
+            }
+        }
+
+        public async Task<bool> ValidateBudgetPercentagesAsync(int savings, int needs, int wants)
+        {
+            try
+            {
+                var total = savings + needs + wants;
+                var isValid = Math.Abs(total - 100) <= 1; // Allow 1% tolerance for rounding
+                
+                _logger.LogInformation("Budget percentage validation: Savings={Savings}%, Needs={Needs}%, Wants={Wants}%, Total={Total}%, Valid={Valid}", 
+                    savings, needs, wants, total, isValid);
+                
+                return isValid;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Exception in ValidateBudgetPercentagesAsync");
+                return false;
             }
         }
     }
