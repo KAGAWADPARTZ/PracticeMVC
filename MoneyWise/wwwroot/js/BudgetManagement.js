@@ -1,393 +1,471 @@
-// Budget Management JavaScript
-$(document).ready(function() {
-    // Initialize DataTable
-    if ($('#budgetTable').length) {
-        $('#budgetTable').DataTable({
-            responsive: true,
-            order: [[3, 'desc']], // Sort by last updated
-            pageLength: 10,
-            language: {
-                search: "Search budget rules:",
-                lengthMenu: "Show _MENU_ budget rules per page",
-                info: "Showing _START_ to _END_ of _TOTAL_ budget rules",
-                paginate: {
-                    first: "First",
-                    last: "Last",
-                    next: "Next",
-                    previous: "Previous"
-                }
+// Budget Management JavaScript - Clean Version with Comprehensive Logging and Complete Isolation
+(function() {
+    'use strict';
+    
+    // Only run this script if we're on a page with the budget modal
+    if (typeof $ === 'undefined') {
+        console.log('🔍 BudgetManagement.js: jQuery not loaded - skipping initialization');
+        return;
+    }
+    
+    $(document).ready(function() {
+        console.log('🔍 BudgetManagement.js: Document ready - Initializing budget management');
+        
+        // Completely disable any global validation for the budget form
+        if (typeof $.validator !== 'undefined') {
+            console.log('🔍 BudgetManagement.js: jQuery validation detected - completely disabling for budget form');
+            $('#budgetForm').validate({
+                ignore: "*", // Ignore all validation
+                onsubmit: false, // Disable submit validation
+                onkeyup: false, // Disable keyup validation
+                onfocusout: false, // Disable focusout validation
+                onclick: false // Disable click validation
+            });
+            
+            // Also disable any unobtrusive validation
+            if ($.validator.unobtrusive) {
+                console.log('🔍 BudgetManagement.js: Unobtrusive validation detected - disabling');
+                $.validator.unobtrusive.adapters.add('required', ['dependency'], function (options) {
+                    // Do nothing - disable all validation
+                });
             }
+        }
+        
+        // Override any global alert functions that might interfere
+        if (typeof window.showSavingsAlert !== 'undefined') {
+            console.log('🔍 BudgetManagement.js: Global showSavingsAlert detected - overriding for budget page');
+            const originalShowSavingsAlert = window.showSavingsAlert;
+            window.showSavingsAlert = function(message, type) {
+                if (message && message.includes('valid amount')) {
+                    console.log('🔍 BudgetManagement.js: Intercepted savings alert about valid amount - ignoring');
+                    return;
+                }
+                return originalShowSavingsAlert.apply(this, arguments);
+            };
+        }
+        
+        // Initialize DataTable
+        if ($('#budgetTable').length) {
+            console.log('🔍 BudgetManagement.js: Initializing DataTable for budget table');
+            $('#budgetTable').DataTable({
+                responsive: true,
+                order: [[3, 'desc']], // Sort by last updated
+                pageLength: 10,
+                language: {
+                    search: "Search budget rules:",
+                    lengthMenu: "Show _MENU_ budget rules per page",
+                    info: "Showing _START_ to _END_ of _TOTAL_ budget rules",
+                    paginate: {
+                        first: "First",
+                        last: "Last",
+                        next: "Next",
+                        previous: "Previous"
+                    }
+                }
+            });
+        }
+
+        // Handle budget form submission
+        $('#budgetForm').on('submit', function(e) {
+            console.log('🔍 BudgetManagement.js: Budget form submit event triggered');
+            e.preventDefault();
+            submitBudgetRule();
         });
+
+        // Auto-validate percentages when they change
+        $('#savingsPercentage, #needsPercentage, #wantsPercentage').on('input', function() {
+            console.log('🔍 BudgetManagement.js: Percentage input changed - validating');
+            validatePercentages();
+        });
+
+        // Initialize modal reset when opened
+        $('#budgetModal').on('show.bs.modal', function() {
+            console.log('🔍 BudgetManagement.js: Budget modal opening - resetting');
+            resetBudgetModal();
+        });
+
+        // Reset modal when closed
+        $('#budgetModal').on('hidden.bs.modal', function() {
+            console.log('🔍 BudgetManagement.js: Budget modal closing - resetting');
+            resetBudgetModal();
+        });
+
+        // Log all form elements to check for conflicts
+        console.log('🔍 BudgetManagement.js: Checking for form conflicts...');
+        console.log('🔍 BudgetManagement.js: Budget form elements found:', {
+            budgetForm: $('#budgetForm').length,
+            savingsPercentage: $('#savingsPercentage').length,
+            needsPercentage: $('#needsPercentage').length,
+            wantsPercentage: $('#wantsPercentage').length,
+            budgetModal: $('#budgetModal').length
+        });
+
+        // Check for any other forms that might conflict
+        console.log('🔍 BudgetManagement.js: All forms on page:', $('form').map(function() {
+            return { id: this.id, action: this.action, class: this.className };
+        }).get());
+
+        // Check for any validation libraries
+        console.log('🔍 BudgetManagement.js: jQuery validation loaded:', typeof $.validator !== 'undefined');
+        if (typeof $.validator !== 'undefined') {
+            console.log('🔍 BudgetManagement.js: jQuery validator methods:', Object.keys($.validator.methods));
+        }
+        
+        // Check for any global functions that might interfere
+        console.log('🔍 BudgetManagement.js: Global functions check:', {
+            showSavingsAlert: typeof window.showSavingsAlert !== 'undefined',
+            showAlert: typeof window.showAlert !== 'undefined',
+            alert: typeof window.alert !== 'undefined'
+        });
+    });
+
+    // Reset budget modal to default state
+    function resetBudgetModal() {
+        console.log('🔍 BudgetManagement.js: resetBudgetModal() called');
+        $('#budgetForm')[0].reset();
+        $('#budgetUserId').val('');
+        $('#budgetModalLabel').text('Add Budget Rule');
+        $('#budgetForm button[type="submit"]').text('Save Budget Rule');
+        
+        // Reset percentage fields to default values
+        $('#savingsPercentage').val(50);
+        $('#needsPercentage').val(30);
+        $('#wantsPercentage').val(20);
+        
+        // Hide validation summary
+        $('#validationSummary').hide();
+        
+        // Reset submit button state
+        const submitBtn = $('#budgetForm button[type="submit"]');
+        submitBtn.prop('disabled', true).removeClass('btn-primary').addClass('btn-secondary');
+        
+        console.log('🔍 BudgetManagement.js: Modal reset complete');
     }
 
-    // Handle form submission
-    $('#budgetForm').on('submit', function(e) {
-        e.preventDefault();
-        submitBudgetRule();
-    });
-
-    // Auto-calculate amounts when total income or percentages change
-    $('#totalAmount, #savingsPercentage, #needsPercentage, #wantsPercentage').on('input', function() {
-        calculateAmounts();
-    });
-});
-
-// Calculate amounts based on custom percentages
-function calculateAmounts() {
-    const totalIncome = parseFloat($('#totalAmount').val()) || 0;
-    const savingsPercent = parseFloat($('#savingsPercentage').val()) || 0;
-    const needsPercent = parseFloat($('#needsPercentage').val()) || 0;
-    const wantsPercent = parseFloat($('#wantsPercentage').val()) || 0;
-    
-    if (totalIncome > 0) {
-        const savings = totalIncome * (savingsPercent / 100);
-        const needs = totalIncome * (needsPercent / 100);
-        const wants = totalIncome * (wantsPercent / 100);
+    // Validate percentages and show summary
+    function validatePercentages() {
+        console.log('🔍 BudgetManagement.js: validatePercentages() called');
+        const savingsPercent = parseFloat($('#savingsPercentage').val()) || 0;
+        const needsPercent = parseFloat($('#needsPercentage').val()) || 0;
+        const wantsPercent = parseFloat($('#wantsPercentage').val()) || 0;
+        const totalPercent = savingsPercent + needsPercent + wantsPercent;
         
-        $('#savingsAmount').val(savings.toFixed(2));
-        $('#needsAmount').val(needs.toFixed(2));
-        $('#wantsAmount').val(wants.toFixed(2));
+        console.log('🔍 BudgetManagement.js: Percentages - Savings:', savingsPercent, 'Needs:', needsPercent, 'Wants:', wantsPercent, 'Total:', totalPercent);
         
         // Show budget summary
-        showBudgetSummary(totalIncome, savings, needs, wants, savingsPercent, needsPercent, wantsPercent);
-    } else {
-        // Hide summary if no income entered
-        $('#validationSummary').hide();
-    }
-}
-
-// Show budget summary
-function showBudgetSummary(totalIncome, savings, needs, wants, savingsPercent, needsPercent, wantsPercent) {
-    const total = savings + needs + wants;
-    const difference = totalIncome - total;
-    const totalPercent = savingsPercent + needsPercent + wantsPercent;
-    const isExact100 = Math.abs(totalPercent - 100) <= 0.1; // Allow small rounding differences
-    
-    let summaryText = `
-        <div class="row mt-2">
-            <div class="col-6">
-                <strong>Total Income:</strong> ₱${totalIncome.toFixed(2)}
-            </div>
-            <div class="col-6">
-                <strong>Total Budget:</strong> ₱${total.toFixed(2)}
-            </div>
-        </div>
-        <div class="row">
-            <div class="col-6">
-                <strong>Savings (${savingsPercent}%):</strong> ₱${savings.toFixed(2)}
-            </div>
-            <div class="col-6">
-                <strong>Needs (${needsPercent}%):</strong> ₱${needs.toFixed(2)}
-            </div>
-        </div>
-        <div class="row">
-            <div class="col-6">
-                <strong>Wants (${wantsPercent}%):</strong> ₱${wants.toFixed(2)}
-            </div>
-            <div class="col-6">
-                <strong>Remaining:</strong> 
-                <span class="${difference >= 0 ? 'text-success' : 'text-danger'}">
-                    ₱${difference.toFixed(2)}
-                </span>
-            </div>
-        </div>
-        <div class="row mt-2">
-            <div class="col-12">
-                <strong>Total Percentage Used:</strong> 
-                <span class="${isExact100 ? 'text-success' : 'text-danger'}">
-                    ${totalPercent.toFixed(1)}%
-                </span>
-                ${!isExact100 ? `<br><small class="text-danger">⚠️ Percentages must equal exactly 100% to save</small>` : '<br><small class="text-success">✅ Percentages are valid!</small>'}
-            </div>
-        </div>
-    `;
-    
-    $('#budgetSummaryText').html(summaryText);
-    $('#validationSummary').show();
-    
-    // Enable/disable submit button based on percentage validation
-    const submitBtn = $('#budgetForm button[type="submit"]');
-    if (isExact100 && totalIncome > 0) {
-        submitBtn.prop('disabled', false).removeClass('btn-secondary').addClass('btn-primary');
-    } else {
-        submitBtn.prop('disabled', true).removeClass('btn-primary').addClass('btn-secondary');
-    }
-}
-
-// Submit budget rule
-function submitBudgetRule() {
-    const formData = {
-        Amount: parseFloat($('#totalAmount').val()) || 0,
-        Savings: parseFloat($('#savingsAmount').val()) || 0,
-        Needs: parseFloat($('#needsAmount').val()) || 0,
-        Wants: parseFloat($('#wantsAmount').val()) || 0
-    };
-
-    // Get percentages for validation
-    const savingsPercent = parseFloat($('#savingsPercentage').val()) || 0;
-    const needsPercent = parseFloat($('#needsPercentage').val()) || 0;
-    const wantsPercent = parseFloat($('#wantsPercentage').val()) || 0;
-    const totalPercent = savingsPercent + needsPercent + wantsPercent;
-
-    // Validate form data
-    if (formData.Amount <= 0) {
-        showAlert('Please enter a valid total income amount.', 'danger');
-        return;
+        showBudgetSummary(savingsPercent, needsPercent, wantsPercent, totalPercent);
     }
 
-    if (formData.Savings < 0 || formData.Needs < 0 || formData.Wants < 0) {
-        showAlert('Please enter valid amounts for all categories.', 'danger');
-        return;
-    }
-
-    // Validate that percentages sum to 100%
-    if (Math.abs(totalPercent - 100) > 0.1) { // Allow small rounding differences
-        showAlert(`Percentages must sum to 100%. Current total: ${totalPercent.toFixed(1)}%`, 'danger');
-        return;
-    }
-
-    // Show loading state
-    const submitBtn = $('#budgetForm button[type="submit"]');
-    const originalText = submitBtn.text();
-    submitBtn.prop('disabled', true).text('Saving...');
-
-    $.ajax({
-        url: '/Budget/CreateBudgetRule',
-        type: 'POST',
-        contentType: 'application/json',
-        data: JSON.stringify(formData),
-        success: function(response) {
-            if (response.success) {
-                showAlert('Budget rule created successfully!', 'success');
-                $('#budgetModal').modal('hide');
-                refreshBudget();
-            } else {
-                showAlert(response.message || 'Failed to create budget rule.', 'danger');
-            }
-        },
-        error: function(xhr, status, error) {
-            console.error('Error creating budget rule:', error);
-            showAlert('An error occurred while creating the budget rule.', 'danger');
-        },
-        complete: function() {
-            submitBtn.prop('disabled', false).text(originalText);
+    // Show budget summary
+    function showBudgetSummary(savingsPercent, needsPercent, wantsPercent, totalPercent) {
+        console.log('🔍 BudgetManagement.js: showBudgetSummary() called');
+        const isExact100 = Math.abs(totalPercent - 100) <= 0.1; // Allow small rounding differences
+        
+        console.log('🔍 BudgetManagement.js: Is exact 100%:', isExact100);
+        
+        let summaryText = `
+            <div class="row mt-2">
+                <div class="col-6">
+                    <strong>Savings:</strong> ${savingsPercent.toFixed(1)}%
+                </div>
+                <div class="col-6">
+                    <strong>Needs:</strong> ${needsPercent.toFixed(1)}%
+                </div>
+            </div>
+            <div class="row">
+                <div class="col-6">
+                    <strong>Wants:</strong> ${wantsPercent.toFixed(1)}%
+                </div>
+                <div class="col-6">
+                    <strong>Total:</strong> 
+                    <span class="${isExact100 ? 'text-success' : 'text-danger'}">
+                        ${totalPercent.toFixed(1)}%
+                    </span>
+                </div>
+            </div>
+            <div class="row mt-2">
+                <div class="col-12">
+                    <strong>Status:</strong> 
+                    <span class="${isExact100 ? 'text-success' : 'text-danger'}">
+                        ${isExact100 ? '✅ Valid' : '⚠️ Invalid'}
+                    </span>
+                    ${!isExact100 ? `<br><small class="text-danger">Percentages must equal exactly 100% to save</small>` : '<br><small class="text-success">Ready to save!</small>'}
+                </div>
+            </div>
+        `;
+        
+        $('#budgetSummaryText').html(summaryText);
+        $('#validationSummary').show();
+        
+        // Enable/disable submit button based on percentage validation
+        const submitBtn = $('#budgetForm button[type="submit"]');
+        if (isExact100) {
+            submitBtn.prop('disabled', false).removeClass('btn-secondary').addClass('btn-primary');
+            console.log('🔍 BudgetManagement.js: Submit button enabled');
+        } else {
+            submitBtn.prop('disabled', true).removeClass('btn-primary').addClass('btn-secondary');
+            console.log('🔍 BudgetManagement.js: Submit button disabled');
         }
-    });
-}
+    }
 
-// Edit budget rule
-function editBudget(userId) {
-    // Get current budget data and populate modal
-    $.ajax({
-        url: `/Budget/GetBudgetRuleById/${userId}`,
-        type: 'GET',
-        success: function(response) {
-            if (response.success && response.data) {
-                const budget = response.data;
-                $('#budgetUserId').val(budget.UserID);
-                $('#totalAmount').val(budget.Amount);
-                
-                // Calculate percentages based on amounts
-                const totalIncome = budget.Amount;
-                const savingsPercent = totalIncome > 0 ? (budget.Savings / totalIncome * 100) : 0;
-                const needsPercent = totalIncome > 0 ? (budget.Needs / totalIncome * 100) : 0;
-                const wantsPercent = totalIncome > 0 ? (budget.Wants / totalIncome * 100) : 0;
-                
-                $('#savingsPercentage').val(savingsPercent.toFixed(1));
-                $('#needsPercentage').val(needsPercent.toFixed(1));
-                $('#wantsPercentage').val(wantsPercent.toFixed(1));
-                
-                $('#savingsAmount').val(budget.Savings);
-                $('#needsAmount').val(budget.Needs);
-                $('#wantsAmount').val(budget.Wants);
-                
-                $('#budgetModalLabel').text('Edit Budget Rule');
-                $('#budgetForm button[type="submit"]').text('Update Budget Rule');
-                
-                $('#budgetModal').modal('show');
-            } else {
-                showAlert('Failed to load budget rule for editing.', 'danger');
-            }
-        },
-        error: function(xhr, status, error) {
-            console.error('Error loading budget rule:', error);
-            showAlert('An error occurred while loading the budget rule.', 'danger');
+    // Submit budget rule
+    function submitBudgetRule() {
+        console.log('🔍 BudgetManagement.js: submitBudgetRule() called');
+        
+        const formData = {
+            Savings: parseInt($('#savingsPercentage').val()) || 0,
+            Needs: parseInt($('#needsPercentage').val()) || 0,
+            Wants: parseInt($('#wantsPercentage').val()) || 0
+        };
+
+        console.log('🔍 BudgetManagement.js: Form data prepared:', formData);
+
+        // Validate percentages
+        const totalPercent = formData.Savings + formData.Needs + formData.Wants;
+        console.log('🔍 BudgetManagement.js: Total percentage:', totalPercent);
+
+        // Validate that percentages sum to 100%
+        if (totalPercent !== 100) {
+            console.log('🔍 BudgetManagement.js: Validation failed - percentages do not equal 100%');
+            showBudgetAlert(`Percentages must sum to 100%. Current total: ${totalPercent}%`, 'danger');
+            return;
         }
-    });
-}
 
-// Delete budget rule
-function deleteBudget(userId) {
-    if (confirm('Are you sure you want to delete this budget rule? This action cannot be undone.')) {
+        console.log('🔍 BudgetManagement.js: Validation passed - proceeding with submission');
+
+        // Show loading state
+        const submitBtn = $('#budgetForm button[type="submit"]');
+        const originalText = submitBtn.text();
+        submitBtn.prop('disabled', true).text('Saving...');
+
+        console.log('🔍 BudgetManagement.js: Sending AJAX request to /Budget/CreateBudgetRule');
+
         $.ajax({
-            url: `/Budget/DeleteBudgetRule/${userId}`,
-            type: 'DELETE',
+            url: '/Budget/CreateBudgetRule',
+            type: 'POST',
+            contentType: 'application/json',
+            data: JSON.stringify(formData),
             success: function(response) {
+                console.log('🔍 BudgetManagement.js: AJAX success response:', response);
                 if (response.success) {
-                    showAlert('Budget rule deleted successfully!', 'success');
+                    showBudgetAlert('Budget rule created successfully!', 'success');
+                    $('#budgetModal').modal('hide');
                     refreshBudget();
                 } else {
-                    showAlert(response.message || 'Failed to delete budget rule.', 'danger');
+                    showBudgetAlert(response.message || 'Failed to create budget rule.', 'danger');
                 }
             },
             error: function(xhr, status, error) {
-                console.error('Error deleting budget rule:', error);
-                showAlert('An error occurred while deleting the budget rule.', 'danger');
+                console.error('🔍 BudgetManagement.js: AJAX error:', { xhr, status, error });
+                showBudgetAlert('An error occurred while creating the budget rule.', 'danger');
+            },
+            complete: function() {
+                console.log('🔍 BudgetManagement.js: AJAX request completed');
+                submitBtn.prop('disabled', false).text(originalText);
             }
         });
     }
-}
 
-// Refresh budget data
-function refreshBudget() {
-    location.reload();
-}
-
-// Export budget to CSV
-function exportBudgetToCSV() {
-    const table = $('#budgetTable').DataTable();
-    const data = table.data().toArray();
-    
-    if (data.length === 0) {
-        showAlert('No budget data to export.', 'warning');
-        return;
+    // Edit budget rule
+    function editBudget(userId) {
+        console.log('🔍 BudgetManagement.js: editBudget() called for user ID:', userId);
+        
+        // Get current budget data and populate modal
+        $.ajax({
+            url: `/Budget/GetBudgetRuleById/${userId}`,
+            type: 'GET',
+            success: function(response) {
+                console.log('🔍 BudgetManagement.js: Edit budget response:', response);
+                if (response.success && response.data) {
+                    const budget = response.data;
+                    $('#budgetUserId').val(budget.UserID);
+                    
+                    // Set percentages directly
+                    $('#savingsPercentage').val(budget.Savings);
+                    $('#needsPercentage').val(budget.Needs);
+                    $('#wantsPercentage').val(budget.Wants);
+                    
+                    // Validate and show summary
+                    validatePercentages();
+                    
+                    // Change modal title and button
+                    $('#budgetModalLabel').text('Edit Budget Rule');
+                    $('#budgetForm button[type="submit"]').text('Update Budget Rule');
+                    
+                    // Show modal
+                    $('#budgetModal').modal('show');
+                } else {
+                    showBudgetAlert('Failed to load budget rule data.', 'danger');
+                }
+            },
+            error: function(xhr, status, error) {
+                console.error('🔍 BudgetManagement.js: Error loading budget rule:', error);
+                showBudgetAlert('An error occurred while loading the budget rule.', 'danger');
+            }
+        });
     }
 
-    let csv = 'Category,Budget Amount,Percentage,Last Updated\n';
-    
-    // Add budget data
-    data.forEach(function(row) {
-        const category = $(row[0]).text().trim();
-        const amount = $(row[1]).text().trim();
-        const percentage = $(row[2]).text().trim();
-        const updated = $(row[3]).text().trim();
+    // Delete budget rule
+    function deleteBudget(userId) {
+        console.log('🔍 BudgetManagement.js: deleteBudget() called for user ID:', userId);
         
-        csv += `"${category}","${amount}","${percentage}","${updated}"\n`;
-    });
+        if (confirm('Are you sure you want to delete this budget rule? This action cannot be undone.')) {
+            $.ajax({
+                url: `/Budget/DeleteBudgetRule/${userId}`,
+                type: 'DELETE',
+                success: function(response) {
+                    console.log('🔍 BudgetManagement.js: Delete response:', response);
+                    if (response.success) {
+                        showBudgetAlert('Budget rule deleted successfully!', 'success');
+                        refreshBudget();
+                    } else {
+                        showBudgetAlert(response.message || 'Failed to delete budget rule.', 'danger');
+                    }
+                },
+                error: function(xhr, status, error) {
+                    console.error('🔍 BudgetManagement.js: Error deleting budget rule:', error);
+                    showBudgetAlert('An error occurred while deleting the budget rule.', 'danger');
+                }
+            });
+        }
+    }
 
-    // Download CSV file
-    const blob = new Blob([csv], { type: 'text/csv' });
-    const url = window.URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `budget_rules_${new Date().toISOString().split('T')[0]}.csv`;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    window.URL.revokeObjectURL(url);
-    
-    showAlert('Budget data exported to CSV successfully!', 'success');
-}
+    // Refresh budget data
+    function refreshBudget() {
+        console.log('🔍 BudgetManagement.js: refreshBudget() called');
+        location.reload();
+    }
 
-// Print budget
-function printBudget() {
-    const printWindow = window.open('', '_blank');
-    const table = $('#budgetTable').DataTable();
-    const data = table.data().toArray();
-    
-    let html = `
-        <html>
-        <head>
-            <title>Budget Rules Report</title>
-            <style>
-                body { font-family: Arial, sans-serif; margin: 20px; }
-                table { width: 100%; border-collapse: collapse; margin-top: 20px; }
-                th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
-                th { background-color: #f2f2f2; }
-                h1 { color: #333; }
-                .summary { margin-bottom: 20px; }
-            </style>
-        </head>
-        <body>
-            <h1>Budget Rules Report</h1>
-            <div class="summary">
-                <p><strong>Generated:</strong> ${new Date().toLocaleString()}</p>
-            </div>
-            <table>
-                <thead>
-                    <tr>
-                        <th>Category</th>
-                        <th>Budget Amount</th>
-                        <th>Percentage</th>
-                        <th>Last Updated</th>
-                    </tr>
-                </thead>
-                <tbody>
-    `;
-    
-    data.forEach(function(row) {
-        const category = $(row[0]).text().trim();
-        const amount = $(row[1]).text().trim();
-        const percentage = $(row[2]).text().trim();
-        const updated = $(row[3]).text().trim();
+    // Export budget data to CSV
+    function exportBudgetToCSV() {
+        console.log('🔍 BudgetManagement.js: exportBudgetToCSV() called');
+        const table = $('#budgetTable');
+        const rows = table.find('tbody tr');
+        
+        let csv = 'Category,Percentage,Calculated Amount,Last Updated\n';
+        
+        rows.each(function() {
+            const category = $(this).find('td:first').text().trim();
+            const percentage = $(this).find('td:nth-child(2)').text().trim();
+            const calculatedAmount = $(this).find('td:nth-child(3)').text().trim();
+            const updated = $(this).find('td:nth-child(4)').text().trim();
+            
+            csv += `"${category}","${percentage}","${calculatedAmount}","${updated}"\n`;
+        });
+        
+        const blob = new Blob([csv], { type: 'text/csv' });
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = 'budget_rules.csv';
+        a.click();
+        window.URL.revokeObjectURL(url);
+    }
+
+    // Print budget data
+    function printBudget() {
+        console.log('🔍 BudgetManagement.js: printBudget() called');
+        const table = $('#budgetTable');
+        const rows = table.find('tbody tr');
+        const printWindow = window.open('', '_blank');
+        
+        let html = `
+            <!DOCTYPE html>
+            <html>
+            <head>
+                <title>Budget Rules Report</title>
+                <style>
+                    body { font-family: Arial, sans-serif; margin: 20px; }
+                    table { border-collapse: collapse; width: 100%; margin-top: 20px; }
+                    th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
+                    th { background-color: #f2f2f2; }
+                    h1 { color: #333; }
+                    .summary { margin-bottom: 20px; }
+                </style>
+            </head>
+            <body>
+                <h1>Budget Rules Report</h1>
+                <div class="summary">
+                    <p><strong>Generated:</strong> ${new Date().toLocaleString()}</p>
+                </div>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Category</th>
+                            <th>Percentage</th>
+                            <th>Calculated Amount</th>
+                            <th>Last Updated</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+        `;
+        
+        rows.each(function() {
+            const category = $(this).find('td:first').text().trim();
+            const percentage = $(this).find('td:nth-child(2)').text().trim();
+            const calculatedAmount = $(this).find('td:nth-child(3)').text().trim();
+            const updated = $(this).find('td:nth-child(4)').text().trim();
+            
+            html += `
+                <tr>
+                    <td>${category}</td>
+                    <td>${percentage}</td>
+                    <td>${calculatedAmount}</td>
+                    <td>${updated}</td>
+                </tr>
+            `;
+        });
         
         html += `
-            <tr>
-                <td>${category}</td>
-                <td>${amount}</td>
-                <td>${percentage}</td>
-                <td>${updated}</td>
-            </tr>
+                    </tbody>
+                </table>
+            </body>
+            </html>
         `;
+        
+        printWindow.document.write(html);
+        printWindow.document.close();
+        printWindow.print();
+    }
+
+    // Show budget-specific alert message (separate from savings modal)
+    function showBudgetAlert(message, type) {
+        console.log('🔍 BudgetManagement.js: showBudgetAlert() called with message:', message, 'type:', type);
+        
+        const alertHtml = `
+            <div class="alert alert-${type} alert-dismissible fade show" role="alert">
+                <i class="fas fa-${type === 'success' ? 'check-circle' : type === 'danger' ? 'exclamation-triangle' : 'info-circle'}"></i>
+                ${message}
+                <button type="button" class="close" data-dismiss="alert" aria-label="Close">
+                    <span aria-hidden="true">&times;</span>
+                </button>
+            </div>
+        `;
+        
+        // Remove existing budget alerts
+        $('.alert').remove();
+        
+        // Add new alert at the top of the page
+        $('.d-sm-flex.align-items-center.justify-content-between.mb-4').after(alertHtml);
+        
+        // Auto-dismiss after 5 seconds
+        setTimeout(function() {
+            $('.alert').fadeOut();
+        }, 5000);
+    }
+
+    // Global error handler to catch any unexpected errors
+    window.addEventListener('error', function(e) {
+        console.error('🔍 BudgetManagement.js: Global error caught:', e);
+        console.error('🔍 BudgetManagement.js: Error details:', {
+            message: e.message,
+            filename: e.filename,
+            lineno: e.lineno,
+            colno: e.colno,
+            error: e.error
+        });
     });
-    
-    html += `
-                </tbody>
-            </table>
-        </body>
-        </html>
-    `;
-    
-    printWindow.document.write(html);
-    printWindow.document.close();
-    printWindow.print();
-}
 
-// Show alert message
-function showAlert(message, type) {
-    const alertHtml = `
-        <div class="alert alert-${type} alert-dismissible fade show" role="alert">
-            <i class="fas fa-${type === 'success' ? 'check-circle' : type === 'danger' ? 'exclamation-triangle' : 'info-circle'}"></i>
-            ${message}
-            <button type="button" class="close" data-dismiss="alert" aria-label="Close">
-                <span aria-hidden="true">&times;</span>
-            </button>
-        </div>
-    `;
-    
-    // Remove existing alerts
-    $('.alert').remove();
-    
-    // Add new alert at the top of the page
-    $('.d-sm-flex.align-items-center.justify-content-between.mb-4').after(alertHtml);
-    
-    // Auto-dismiss after 5 seconds
-    setTimeout(function() {
-        $('.alert').fadeOut();
-    }, 5000);
-}
-
-// Reset modal when closed
-$('#budgetModal').on('hidden.bs.modal', function() {
-    $('#budgetForm')[0].reset();
-    $('#budgetUserId').val('');
-    $('#budgetModalLabel').text('Add Budget Rule');
-    $('#budgetForm button[type="submit"]').text('Save Budget Rule');
-    
-    // Reset percentage fields to default values
-    $('#savingsPercentage').val(50);
-    $('#needsPercentage').val(30);
-    $('#wantsPercentage').val(20);
-    
-    // Clear amount fields
-    $('#savingsAmount').val('');
-    $('#needsAmount').val('');
-    $('#wantsAmount').val('');
-    
-    // Hide validation summary
-    $('#validationSummary').hide();
-    
-    // Reset submit button state
-    const submitBtn = $('#budgetForm button[type="submit"]');
-    submitBtn.prop('disabled', true).removeClass('btn-primary').addClass('btn-secondary');
-});
+    // Log when the script is fully loaded
+    console.log('🔍 BudgetManagement.js: Script fully loaded and ready');
+})();

@@ -9,12 +9,14 @@ namespace MoneyWise.Controllers
     {
         private readonly BudgetRulesService _budgetRulesService;
         private readonly SupabaseService _supabaseService;
+        private readonly SavingsService _savingsService;
 
-        public BudgetController(BudgetRulesService budgetRulesService, SupabaseService supabaseService, ILogger<BudgetController> logger, LoginService loginService)
+        public BudgetController(BudgetRulesService budgetRulesService, SupabaseService supabaseService, SavingsService savingsService, ILogger<BudgetController> logger, LoginService loginService)
             : base(logger, loginService)
         {
             _budgetRulesService = budgetRulesService;
             _supabaseService = supabaseService;
+            _savingsService = savingsService;
         }
 
         public async Task<IActionResult> Index()
@@ -34,19 +36,53 @@ namespace MoneyWise.Controllers
                     return RedirectToAction("Index", "Home");
                 }
 
-                // Get budget rules from service
-                var budgets = await _budgetRulesService.GetUserBudgetRulesAsync(userEmail);
+                // Get user ID first
+                var userId = await GetUserIdFromEmailAsync(userEmail);
+                if (userId == 0)
+                {
+                    TempData["ErrorMessage"] = "User not found.";
+                    return View(new List<BudgetRulesModel>());
+                }
+
+                // Get budget rules from service (percentages only)
+                var budgets = await _budgetRulesService.GetBudgetRulesByUserAsync(userId);
                 
-                // Get budget summary
-                var summary = await _budgetRulesService.GetBudgetSummaryAsync(userEmail);
+                // Convert BudgetRules to BudgetRulesModel for the view
+                var budgetModels = budgets.Select(b => new BudgetRulesModel
+                {
+                    UserID = b.UserID,
+                    Savings = b.Savings,      // Percentage
+                    Needs = b.Needs,          // Percentage
+                    Wants = b.Wants,          // Percentage
+                    updated_at = b.updated_at
+                }).ToList();
                 
-                // Set ViewBag values for display
-                ViewBag.TotalIncome = summary["TotalIncome"].ToString();
-                ViewBag.TotalSavings = summary["TotalSavings"].ToString();
-                ViewBag.TotalNeeds = summary["TotalNeeds"].ToString();
-                ViewBag.TotalWants = summary["TotalWants"].ToString();
+                // Get user's total savings amount
+                var userSavings = await _savingsService.GetUserSavingsAsync(userEmail);
+                var totalSavingsAmount = userSavings?.Amount ?? 0;
                 
-                return View(budgets);
+                // Calculate actual amounts based on percentages
+                if (budgetModels.Any())
+                {
+                    var latestBudget = budgetModels.First();
+                    var savingsAmount = (totalSavingsAmount * latestBudget.Savings) / 100;
+                    var needsAmount = (totalSavingsAmount * latestBudget.Needs) / 100;
+                    var wantsAmount = (totalSavingsAmount * latestBudget.Wants) / 100;
+                    
+                    ViewBag.TotalIncome = totalSavingsAmount.ToString("F2");
+                    ViewBag.TotalSavings = savingsAmount.ToString("F2");
+                    ViewBag.TotalNeeds = needsAmount.ToString("F2");
+                    ViewBag.TotalWants = wantsAmount.ToString("F2");
+                }
+                else
+                {
+                    ViewBag.TotalIncome = "0.00";
+                    ViewBag.TotalSavings = "0.00";
+                    ViewBag.TotalNeeds = "0.00";
+                    ViewBag.TotalWants = "0.00";
+                }
+                
+                return View(budgetModels);
             }
             catch (Exception ex)
             {
@@ -72,13 +108,49 @@ namespace MoneyWise.Controllers
                     return JsonError("Invalid budget rule data", ModelState);
                 }
 
+                // Validate that percentages add up to 100%
+                if (budgetRule.Savings + budgetRule.Needs + budgetRule.Wants != 100)
+                {
+                    return JsonError("Savings, Needs, and Wants percentages must add up to 100%");
+                }
+
                 // Get user ID from email
-                var userEmail = GetCurrentUserEmail()!;
+                var userEmail = GetCurrentUserEmail();
+                if (string.IsNullOrEmpty(userEmail))
+                {
+                    return JsonError("User email not found");
+                }
+                
                 budgetRule.UserID = await GetUserIdFromEmailAsync(userEmail);
                 budgetRule.updated_at = DateTime.UtcNow;
 
-                var createdBudgetRule = await _budgetRulesService.UpsertBudgetRuleAsync(budgetRule);
-                return JsonSuccess(createdBudgetRule, "Budget rule created successfully");
+                // Convert BudgetRulesModel to BudgetRules (percentages only)
+                var budgetRuleEntity = new BudgetRules
+                {
+                    UserID = budgetRule.UserID,
+                    Savings = budgetRule.Savings,      // Percentage
+                    Needs = budgetRule.Needs,          // Percentage
+                    Wants = budgetRule.Wants,          // Percentage
+                    updated_at = budgetRule.updated_at
+                };
+
+                var createdBudgetRule = await _budgetRulesService.UpsertBudgetRuleAsync(budgetRuleEntity);
+                if (createdBudgetRule == null)
+                {
+                    return JsonError("Failed to create budget rule");
+                }
+
+                // Convert back to model for response
+                var responseModel = new BudgetRulesModel
+                {
+                    UserID = createdBudgetRule.UserID,
+                    Savings = createdBudgetRule.Savings,
+                    Needs = createdBudgetRule.Needs,
+                    Wants = createdBudgetRule.Wants,
+                    updated_at = createdBudgetRule.updated_at
+                };
+
+                return JsonSuccess(responseModel, "Budget rule created successfully");
             }
             catch (Exception ex)
             {
@@ -102,16 +174,42 @@ namespace MoneyWise.Controllers
                     return JsonError("Invalid budget rule data", ModelState);
                 }
 
+                // Validate that percentages add up to 100%
+                if (budgetRule.Savings + budgetRule.Needs + budgetRule.Wants != 100)
+                {
+                    return JsonError("Savings, Needs, and Wants percentages must add up to 100%");
+                }
+
                 budgetRule.UserID = userId;
                 budgetRule.updated_at = DateTime.UtcNow;
 
-                var updatedBudgetRule = await _budgetRulesService.UpdateBudgetRuleAsync(budgetRule);
+                // Convert BudgetRulesModel to BudgetRules (percentages only)
+                var budgetRuleEntity = new BudgetRules
+                {
+                    UserID = budgetRule.UserID,
+                    Savings = budgetRule.Savings,      // Percentage
+                    Needs = budgetRule.Needs,          // Percentage
+                    Wants = budgetRule.Wants,          // Percentage
+                    updated_at = budgetRule.updated_at
+                };
+
+                var updatedBudgetRule = await _budgetRulesService.UpdateBudgetRuleAsync(budgetRuleEntity);
                 if (updatedBudgetRule == null)
                 {
                     return JsonError("Budget rule not found or you don't have permission to update it");
                 }
 
-                return JsonSuccess(updatedBudgetRule, "Budget rule updated successfully");
+                // Convert back to model for response
+                var responseModel = new BudgetRulesModel
+                {
+                    UserID = updatedBudgetRule.UserID,
+                    Savings = updatedBudgetRule.Savings,
+                    Needs = updatedBudgetRule.Needs,
+                    Wants = updatedBudgetRule.Wants,
+                    updated_at = updatedBudgetRule.updated_at
+                };
+
+                return JsonSuccess(responseModel, "Budget rule updated successfully");
             }
             catch (Exception ex)
             {
@@ -155,7 +253,48 @@ namespace MoneyWise.Controllers
                 var authResult = ValidateAuthentication();
                 if (authResult != null) return authResult;
 
-                var summary = await _budgetRulesService.GetBudgetSummaryAsync(GetCurrentUserEmail()!);
+                var userEmail = GetCurrentUserEmail();
+                if (string.IsNullOrEmpty(userEmail))
+                {
+                    return JsonError("User email not found");
+                }
+
+                var userId = await GetUserIdFromEmailAsync(userEmail);
+                if (userId == 0)
+                {
+                    return JsonError("User not found");
+                }
+
+                // Get user's total savings amount
+                var userSavings = await _savingsService.GetUserSavingsAsync(userEmail);
+                var totalSavingsAmount = userSavings?.Amount ?? 0;
+
+                // Get budget rules (percentages)
+                var budgetRules = await _budgetRulesService.GetBudgetRulesByUserAsync(userId);
+                var summary = new Dictionary<string, object>();
+
+                if (budgetRules.Any())
+                {
+                    var latestRule = budgetRules.OrderByDescending(b => b.updated_at).First();
+                    summary["TotalIncome"] = totalSavingsAmount;
+                    summary["TotalSavings"] = (totalSavingsAmount * latestRule.Savings) / 100;
+                    summary["TotalNeeds"] = (totalSavingsAmount * latestRule.Needs) / 100;
+                    summary["TotalWants"] = (totalSavingsAmount * latestRule.Wants) / 100;
+                    summary["SavingsPercentage"] = latestRule.Savings;
+                    summary["NeedsPercentage"] = latestRule.Needs;
+                    summary["WantsPercentage"] = latestRule.Wants;
+                }
+                else
+                {
+                    summary["TotalIncome"] = totalSavingsAmount;
+                    summary["TotalSavings"] = 0;
+                    summary["TotalNeeds"] = 0;
+                    summary["TotalWants"] = 0;
+                    summary["SavingsPercentage"] = 0;
+                    summary["NeedsPercentage"] = 0;
+                    summary["WantsPercentage"] = 0;
+                }
+
                 return JsonSuccess(summary);
             }
             catch (Exception ex)
@@ -181,7 +320,17 @@ namespace MoneyWise.Controllers
                     return JsonError("Budget rule not found");
                 }
 
-                return JsonSuccess(budgetRule);
+                // Convert to model for response
+                var responseModel = new BudgetRulesModel
+                {
+                    UserID = budgetRule.UserID,
+                    Savings = budgetRule.Savings,
+                    Needs = budgetRule.Needs,
+                    Wants = budgetRule.Wants,
+                    updated_at = budgetRule.updated_at
+                };
+
+                return JsonSuccess(responseModel);
             }
             catch (Exception ex)
             {

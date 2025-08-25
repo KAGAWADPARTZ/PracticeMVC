@@ -75,8 +75,8 @@
                     <thead>
                         <tr>
                             <th>Category</th>
-                            <th>Budget Amount</th>
                             <th>Percentage</th>
+                            <th>Calculated Amount</th>
                             <th>Last Updated</th>
                             <th>Actions</th>
                         </tr>
@@ -90,11 +90,11 @@
                                     <br>
                                     <small class="text-muted">Emergency fund, investments, retirement</small>
                                 </td>
-                                <td class="text-primary">
-                                    <strong>₱@budget.Savings.ToString("F2")</strong>
-                                </td>
                                 <td class="text-success">
-                                    <span class="badge badge-success">50%</span>
+                                    <span class="badge badge-success">@budget.Savings%</span>
+                                </td>
+                                <td class="text-primary">
+                                    <strong>₱@(((decimal.Parse(ViewBag.TotalIncome.ToString()) * budget.Savings) / 100).ToString("F2"))</strong>
                                 </td>
                                 <td>
                                     @if (budget.updated_at.HasValue)
@@ -123,11 +123,11 @@
                                     <br>
                                     <small class="text-muted">Housing, utilities, food, transportation</small>
                                 </td>
-                                <td class="text-primary">
-                                    <strong>₱@budget.Needs.ToString("F2")</strong>
-                                </td>
                                 <td class="text-warning">
-                                    <span class="badge badge-warning">30%</span>
+                                    <span class="badge badge-warning">@budget.Needs%</span>
+                                </td>
+                                <td class="text-primary">
+                                    <strong>₱@(((decimal.Parse(ViewBag.TotalIncome.ToString()) * budget.Needs) / 100).ToString("F2"))</strong>
                                 </td>
                                 <td>
                                     @if (budget.updated_at.HasValue)
@@ -156,11 +156,11 @@
                                     <br>
                                     <small class="text-muted">Entertainment, dining out, shopping</small>
                                 </td>
-                                <td class="text-primary">
-                                    <strong>₱@budget.Wants.ToString("F2")</strong>
-                                </td>
                                 <td class="text-info">
-                                    <span class="badge badge-info">20%</span>
+                                    <span class="badge badge-info">@budget.Wants%</span>
+                                </td>
+                                <td class="text-primary">
+                                    <strong>₱@(((decimal.Parse(ViewBag.TotalIncome.ToString()) * budget.Wants) / 100).ToString("F2"))</strong>
                                 </td>
                                 <td>
                                     @if (budget.updated_at.HasValue)
@@ -210,14 +210,14 @@
                 <div class="row no-gutters align-items-center">
                     <div class="col mr-2">
                         <div class="text-xs font-weight-bold text-success text-uppercase mb-1">
-                            Total Income
+                            Total Savings
                         </div>
                         <div class="h5 mb-0 font-weight-bold text-gray-800" id="totalIncome">
                             ₱@ViewBag.TotalIncome
                         </div>
                     </div>
                     <div class="col-auto">  
-                        <i class="fas fa-dollar-sign fa-2x text-gray-300"></i>
+                        <i class="fas fa-piggy-bank fa-2x text-gray-300"></i>
                     </div>
                 </div>
             </div>
@@ -230,7 +230,7 @@
             <div class="row no-gutters align-items-center">
                 <div class="col mr-2">
                     <div class="text-xs font-weight-bold text-primary text-uppercase mb-1">
-                        Savings (50%)
+                        Savings (@(Model?.FirstOrDefault()?.Savings ?? 0)%)
                     </div>
                     <div class="h5 mb-0 font-weight-bold text-gray-800" id="totalSavings">
                         ₱@ViewBag.TotalSavings
@@ -250,7 +250,7 @@
                 <div class="row no-gutters align-items-center">
                     <div class="col mr-2">
                         <div class="text-xs font-weight-bold text-warning text-uppercase mb-1">
-                            Needs (30%)
+                            Needs (@(Model?.FirstOrDefault()?.Needs ?? 0)%)
                         </div>
                         <div class="h5 mb-0 font-weight-bold text-gray-800" id="totalNeeds">
                             ₱@ViewBag.TotalNeeds
@@ -270,7 +270,7 @@
                 <div class="row no-gutters align-items-center">
                     <div class="col mr-2">
                         <div class="text-xs font-weight-bold text-info text-uppercase mb-1">
-                            Wants (20%)
+                            Wants (@(Model?.FirstOrDefault()?.Wants ?? 0)%)
                         </div>
                         <div class="h5 mb-0 font-weight-bold text-gray-800" id="totalWants">
                             ₱@ViewBag.TotalWants
@@ -299,26 +299,12 @@
                 <div class="modal-body">
                     <input type="hidden" id="budgetUserId" name="UserID" />
                     
-                    <!-- Total Income Section -->
-                    <div class="form-group">
-                        <label for="totalAmount" class="font-weight-bold text-primary">
-                            <i class="fas fa-dollar-sign"></i> Total Monthly Income
-                        </label>
-                        <div class="input-group">
-                            <div class="input-group-prepend">
-                                <span class="input-group-text">₱</span>
-                            </div>
-                            <input type="number" class="form-control" id="totalAmount" name="Amount" step="0.01" min="0" required 
-                                   placeholder="Enter your total monthly income">
-                        </div>
-                        <small class="form-text text-muted">
-                            <i class="fas fa-info-circle"></i> This is your total monthly income before any deductions
-                        </small>
+                    <div class="alert alert-info">
+                        <i class="fas fa-info-circle"></i>
+                        <strong>Note:</strong> Enter percentages that add up to 100%. The amounts will be calculated based on your total savings.
                     </div>
 
-                    <hr class="my-4">
-
-                                         <!-- Custom Budget Rule Breakdown -->
+                    <!-- Custom Budget Rule Breakdown -->
                      <h6 class="text-center text-info mb-3">
                          <i class="fas fa-chart-pie"></i> Custom Budget Rule Breakdown
                      </h6>
@@ -329,8 +315,8 @@
                              <i class="fas fa-piggy-bank"></i> Savings Percentage
                          </label>
                          <div class="input-group">
-                             <input type="number" class="form-control" id="savingsPercentage" step="0.1" min="0" max="100" value="50" 
-                                    placeholder="Enter percentage (e.g., 50)">
+                             <input type="number" class="form-control" id="savingsPercentage" name="Savings" step="1" min="0" max="100" value="50" 
+                                    placeholder="Enter percentage (e.g., 50)" required>
                              <div class="input-group-append">
                                  <span class="input-group-text">%</span>
                              </div>
@@ -340,27 +326,14 @@
                          </small>
                      </div>
 
-                     <div class="form-group">
-                         <label for="savingsAmount" class="font-weight-bold text-success">
-                             <i class="fas fa-piggy-bank"></i> Savings Amount
-                         </label>
-                         <div class="input-group">
-                             <div class="input-group-prepend">
-                                 <span class="input-group-text">₱</span>
-                             </div>
-                             <input type="number" class="form-control" id="savingsAmount" name="Savings" step="0.01" min="0" required 
-                                    placeholder="Calculated automatically" readonly>
-                         </div>
-                     </div>
-
                      <!-- Needs Section -->
                      <div class="form-group">
                          <label for="needsPercentage" class="font-weight-bold text-warning">
                              <i class="fas fa-home"></i> Needs Percentage
                          </label>
                          <div class="input-group">
-                             <input type="number" class="form-control" id="needsPercentage" step="0.1" min="0" max="100" value="30" 
-                                    placeholder="Enter percentage (e.g., 30)">
+                             <input type="number" class="form-control" id="needsPercentage" name="Needs" step="1" min="0" max="100" value="30" 
+                                    placeholder="Enter percentage (e.g., 30)" required>
                              <div class="input-group-append">
                                  <span class="input-group-text">%</span>
                              </div>
@@ -370,27 +343,14 @@
                          </small>
                      </div>
 
-                     <div class="form-group">
-                         <label for="needsAmount" class="font-weight-bold text-warning">
-                             <i class="fas fa-home"></i> Needs Amount
-                         </label>
-                         <div class="input-group">
-                             <div class="input-group-prepend">
-                                 <span class="input-group-text">₱</span>
-                             </div>
-                             <input type="number" class="form-control" id="needsAmount" name="Needs" step="0.01" min="0" required 
-                                    placeholder="Calculated automatically" readonly>
-                         </div>
-                     </div>
-
                      <!-- Wants Section -->
                      <div class="form-group">
                          <label for="wantsPercentage" class="font-weight-bold text-info">
                              <i class="fas fa-shopping-cart"></i> Wants Percentage
                          </label>
                          <div class="input-group">
-                             <input type="number" class="form-control" id="wantsPercentage" step="0.1" min="0" max="100" value="20" 
-                                    placeholder="Enter percentage (e.g., 20)">
+                             <input type="number" class="form-control" id="wantsPercentage" name="Wants" step="1" min="0" max="100" value="20" 
+                                    placeholder="Enter percentage (e.g., 20)" required>
                              <div class="input-group-append">
                                  <span class="input-group-text">%</span>
                              </div>
@@ -398,19 +358,6 @@
                          <small class="form-text text-muted">
                              <i class="fas fa-lightbulb"></i> Entertainment, dining out, shopping, hobbies
                          </small>
-                     </div>
-
-                     <div class="form-group">
-                         <label for="wantsAmount" class="font-weight-bold text-info">
-                             <i class="fas fa-shopping-cart"></i> Wants Amount
-                         </label>
-                         <div class="input-group">
-                             <div class="input-group-prepend">
-                                 <span class="input-group-text">₱</span>
-                             </div>
-                             <input type="number" class="form-control" id="wantsAmount" name="Wants" step="0.01" min="0" required 
-                                    placeholder="Calculated automatically" readonly>
-                         </div>
                      </div>
 
                     <!-- Validation Summary -->

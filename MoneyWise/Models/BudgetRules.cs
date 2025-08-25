@@ -8,19 +8,15 @@ namespace MoneyWise.Models
         public int UserID { get; set; }
         
         [Required]
-        [Range(0, int.MaxValue, ErrorMessage = "Total amount must be greater than 0")]
-        public int TotalAmount { get; set; }
-        
-        [Required]
-        [Range(0, int.MaxValue, ErrorMessage = "Savings amount must be greater than or equal to 0")]
+        [Range(0, 100, ErrorMessage = "Savings percentage must be between 0 and 100")]
         public int Savings { get; set; }
         
         [Required]
-        [Range(0, int.MaxValue, ErrorMessage = "Needs amount must be greater than or equal to 0")]
+        [Range(0, 100, ErrorMessage = "Needs percentage must be between 0 and 100")]
         public int Needs { get; set; }
         
         [Required]
-        [Range(0, int.MaxValue, ErrorMessage = "Wants amount must be greater than or equal to 0")]
+        [Range(0, 100, ErrorMessage = "Wants percentage must be between 0 and 100")]
         public int Wants { get; set; }
         
         public DateTime? created_at { get; set; }
