@@ -242,15 +242,17 @@ namespace MoneyWise.Services
         {
             try
             {
-                _logger.LogInformation("Upserting budget rule with ID: {Id}", budgetRule.BudgetRulesID);
+                _logger.LogInformation("Upserting budget rule for user: {UserId}", budgetRule.UserID);
                 
-                // Check if budget rule exists
-                var existingRule = await GetBudgetRuleByIdAsync(budgetRule.BudgetRulesID);
+                // Check if budget rule exists for this user
+                var existingRules = await GetBudgetRulesByUserAsync(budgetRule.UserID);
+                var existingRule = existingRules.FirstOrDefault();
                 
                 if (existingRule != null)
                 {
                     // Update existing rule
                     _logger.LogInformation("Budget rule exists, updating...");
+                    budgetRule.BudgetRulesID = existingRule.BudgetRulesID;
                     return await UpdateBudgetRuleAsync(budgetRule);
                 }
                 else
@@ -262,7 +264,7 @@ namespace MoneyWise.Services
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Exception in UpsertBudgetRuleAsync for ID: {Id}", budgetRule.BudgetRulesID);
+                _logger.LogError(ex, "Exception in UpsertBudgetRuleAsync for UserID: {UserId}", budgetRule.UserID);
                 return null;
             }
         }
@@ -279,20 +281,12 @@ namespace MoneyWise.Services
                 if (budgetRules.Any())
                 {
                     var latestRule = budgetRules.OrderByDescending(b => b.updated_at).First();
-                    summary["TotalIncome"] = latestRule.TotalAmount;
-                    summary["TotalSavings"] = latestRule.Savings;
-                    summary["TotalNeeds"] = latestRule.Needs;
-                    summary["TotalWants"] = latestRule.Wants;
-                    summary["SavingsPercentage"] = latestRule.TotalAmount > 0 ? (latestRule.Savings * 100.0 / latestRule.TotalAmount) : 0;
-                    summary["NeedsPercentage"] = latestRule.TotalAmount > 0 ? (latestRule.Needs * 100.0 / latestRule.TotalAmount) : 0;
-                    summary["WantsPercentage"] = latestRule.TotalAmount > 0 ? (latestRule.Wants * 100.0 / latestRule.TotalAmount) : 0;
+                    summary["SavingsPercentage"] = latestRule.Savings;
+                    summary["NeedsPercentage"] = latestRule.Needs;
+                    summary["WantsPercentage"] = latestRule.Wants;
                 }
                 else
                 {
-                    summary["TotalIncome"] = 0;
-                    summary["TotalSavings"] = 0;
-                    summary["TotalNeeds"] = 0;
-                    summary["TotalWants"] = 0;
                     summary["SavingsPercentage"] = 0;
                     summary["NeedsPercentage"] = 0;
                     summary["WantsPercentage"] = 0;
@@ -306,10 +300,6 @@ namespace MoneyWise.Services
                 _logger.LogError(ex, "Exception in GetBudgetSummaryAsync for UserID: {UserId}", userId);
                 return new Dictionary<string, object>
                 {
-                    ["TotalIncome"] = 0,
-                    ["TotalSavings"] = 0,
-                    ["TotalNeeds"] = 0,
-                    ["TotalWants"] = 0,
                     ["SavingsPercentage"] = 0,
                     ["NeedsPercentage"] = 0,
                     ["WantsPercentage"] = 0
