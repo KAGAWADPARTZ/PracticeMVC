@@ -77,13 +77,20 @@
         }
 
         // Form validation - ONLY for savings modal
-        if ($('#editSavingsForm').length > 0) {
+        if ($('#editSavingsForm').length > 0 && $('#savingsModal').length > 0) {
             $('#savingsAmount').on('input', validateSavingsForm);
             $('input[name="actionType"]').on('change', validateSavingsForm);
         }
 
         function validateSavingsForm() {
             console.log('💰 SavingsModal.js: Validating savings form');
+            
+            // Only validate if savings modal is present
+            if ($('#savingsModal').length === 0) {
+                console.log('💰 SavingsModal.js: Savings modal not present - skipping validation');
+                return;
+            }
+            
             const amount = $('#savingsAmount').val();
             const actionType = $('input[name="actionType"]:checked');
             const submitBtn = $('#submitSavingsBtn');
@@ -103,7 +110,7 @@
         }
 
         // Handle form submission - ONLY for savings modal
-        if ($('#editSavingsForm').length > 0) {
+        if ($('#editSavingsForm').length > 0 && $('#savingsModal').length > 0) {
             $('#editSavingsForm').on('submit', function(e) {
                 console.log('💰 SavingsModal.js: Savings form submit event triggered');
                 e.preventDefault();

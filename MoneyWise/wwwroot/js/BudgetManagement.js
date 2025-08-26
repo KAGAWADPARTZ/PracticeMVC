@@ -29,6 +29,14 @@
                     // Do nothing - disable all validation
                 });
             }
+            
+            // Disable validation for any form that's not the budget form
+            $('form:not(#budgetForm)').each(function() {
+                if ($(this).data('validator')) {
+                    console.log('🔍 BudgetManagement.js: Disabling validation for non-budget form:', this.id);
+                    $(this).data('validator').settings.ignore = "*";
+                }
+            });
         }
         
         // Override any global alert functions that might interfere
@@ -36,8 +44,9 @@
             console.log('🔍 BudgetManagement.js: Global showSavingsAlert detected - overriding for budget page');
             const originalShowSavingsAlert = window.showSavingsAlert;
             window.showSavingsAlert = function(message, type) {
-                if (message && message.includes('valid amount')) {
-                    console.log('🔍 BudgetManagement.js: Intercepted savings alert about valid amount - ignoring');
+                // Check if this is a budget page and the message is about amounts
+                if (window.location.pathname.includes('/Budget') && message && message.includes('valid amount')) {
+                    console.log('🔍 BudgetManagement.js: Intercepted savings alert about valid amount on budget page - ignoring');
                     return;
                 }
                 return originalShowSavingsAlert.apply(this, arguments);
@@ -65,11 +74,14 @@
             });
         }
 
-        // Handle budget form submission
-        $('#budgetForm').on('submit', function(e) {
+        // Handle budget form submission - completely isolated
+        $('#budgetForm').off('submit').on('submit', function(e) {
             console.log('🔍 BudgetManagement.js: Budget form submit event triggered');
             e.preventDefault();
+            e.stopPropagation();
+            e.stopImmediatePropagation();
             submitBudgetRule();
+            return false;
         });
 
         // Auto-validate percentages when they change
@@ -464,6 +476,13 @@
             colno: e.colno,
             error: e.error
         });
+        
+        // If this is a validation error about amounts on the budget page, prevent it
+        if (window.location.pathname.includes('/Budget') && e.message && e.message.includes('valid amount')) {
+            console.log('🔍 BudgetManagement.js: Preventing validation error about amounts on budget page');
+            e.preventDefault();
+            return false;
+        }
     });
 
     // Log when the script is fully loaded

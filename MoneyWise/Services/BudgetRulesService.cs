@@ -36,6 +36,11 @@ namespace MoneyWise.Services
             try
             {
                 _logger.LogInformation("Calling Supabase API to get all budget rules...");
+                
+                // Log the request details
+                _logger.LogInformation("Making GET request to: /rest/v1/BudgetRules?select=*");
+                _logger.LogInformation("Request headers: {Headers}", string.Join(", ", _httpClient.DefaultRequestHeaders.Select(h => $"{h.Key}: {string.Join(", ", h.Value)}")));
+                
                 var response = await _httpClient.GetAsync("/rest/v1/BudgetRules?select=*");
                 
                 _logger.LogInformation("Response status: {StatusCode}", response.StatusCode);
@@ -62,7 +67,7 @@ namespace MoneyWise.Services
             }
         }
 
-        public async Task<BudgetRules?> GetBudgetRuleByIdAsync(int budgetRuleId)
+        public async Task<BudgetRules?> GetBudgetRuleByIdAsync(long budgetRuleId)
         {
             try
             {
@@ -96,7 +101,7 @@ namespace MoneyWise.Services
             }
         }
 
-        public async Task<List<BudgetRules>> GetBudgetRulesByUserAsync(int userId)
+        public async Task<List<BudgetRules>> GetBudgetRulesByUserAsync(long userId)
         {
             try
             {
@@ -138,10 +143,25 @@ namespace MoneyWise.Services
                 // Set the updated timestamp
                 budgetRule.updated_at = DateTime.UtcNow;
                 
-                var json = JsonSerializer.Serialize(budgetRule);
+                // Only include fields that exist in the database
+                var budgetRuleData = new
+                {
+                    budgetRule.UserID,
+                    budgetRule.Savings,
+                    budgetRule.Needs,
+                    budgetRule.Wants,
+                    budgetRule.updated_at
+                };
+                
+                var json = JsonSerializer.Serialize(budgetRuleData);
                 _logger.LogInformation("JSON being sent: {Json}", json);
                 
                 var content = new StringContent(json, Encoding.UTF8, "application/json");
+                
+                // Log the request details
+                _logger.LogInformation("Making POST request to: /rest/v1/BudgetRules");
+                _logger.LogInformation("Request headers: {Headers}", string.Join(", ", _httpClient.DefaultRequestHeaders.Select(h => $"{h.Key}: {string.Join(", ", h.Value)}")));
+                
                 var response = await _httpClient.PostAsync("/rest/v1/BudgetRules", content);
                 
                 _logger.LogInformation("Response status: {StatusCode}", response.StatusCode);
@@ -156,10 +176,24 @@ namespace MoneyWise.Services
                 var responseJson = await response.Content.ReadAsStringAsync();
                 _logger.LogInformation("Response JSON: {Json}", responseJson);
                 
-                var createdBudgetRule = JsonSerializer.Deserialize<BudgetRules>(responseJson);
-                _logger.LogInformation("Created budget rule with ID: {Id}", createdBudgetRule?.BudgetRulesID);
+                // Check if response is empty
+                if (string.IsNullOrWhiteSpace(responseJson))
+                {
+                    _logger.LogError("Supabase returned empty response for budget rule creation");
+                    return null;
+                }
                 
-                return createdBudgetRule;
+                try
+                {
+                    var createdBudgetRule = JsonSerializer.Deserialize<BudgetRules>(responseJson);
+                    _logger.LogInformation("Created budget rule with ID: {Id}", createdBudgetRule?.BudgetRulesID);
+                    return createdBudgetRule;
+                }
+                catch (JsonException jsonEx)
+                {
+                    _logger.LogError(jsonEx, "Failed to deserialize budget rule response: {ResponseJson}", responseJson);
+                    return null;
+                }
             }
             catch (Exception ex)
             {
@@ -177,7 +211,16 @@ namespace MoneyWise.Services
                 // Set the updated timestamp
                 budgetRule.updated_at = DateTime.UtcNow;
                 
-                var json = JsonSerializer.Serialize(budgetRule);
+                // Only include fields that exist in the database
+                var budgetRuleData = new
+                {
+                    budgetRule.Savings,
+                    budgetRule.Needs,
+                    budgetRule.Wants,
+                    budgetRule.updated_at
+                };
+                
+                var json = JsonSerializer.Serialize(budgetRuleData);
                 _logger.LogInformation("JSON being sent: {Json}", json);
                 
                 var content = new StringContent(json, Encoding.UTF8, "application/json");
@@ -199,10 +242,24 @@ namespace MoneyWise.Services
                 var responseJson = await response.Content.ReadAsStringAsync();
                 _logger.LogInformation("Response JSON: {Json}", responseJson);
                 
-                var updatedBudgetRule = JsonSerializer.Deserialize<BudgetRules>(responseJson);
-                _logger.LogInformation("Updated budget rule with ID: {Id}", updatedBudgetRule?.BudgetRulesID);
+                // Check if response is empty
+                if (string.IsNullOrWhiteSpace(responseJson))
+                {
+                    _logger.LogError("Supabase returned empty response for budget rule update");
+                    return null;
+                }
                 
-                return updatedBudgetRule;
+                try
+                {
+                    var updatedBudgetRule = JsonSerializer.Deserialize<BudgetRules>(responseJson);
+                    _logger.LogInformation("Updated budget rule with ID: {Id}", updatedBudgetRule?.BudgetRulesID);
+                    return updatedBudgetRule;
+                }
+                catch (JsonException jsonEx)
+                {
+                    _logger.LogError(jsonEx, "Failed to deserialize budget rule update response: {ResponseJson}", responseJson);
+                    return null;
+                }
             }
             catch (Exception ex)
             {
@@ -211,7 +268,7 @@ namespace MoneyWise.Services
             }
         }
 
-        public async Task<bool> DeleteBudgetRuleAsync(int budgetRuleId)
+        public async Task<bool> DeleteBudgetRuleAsync(long budgetRuleId)
         {
             try
             {
@@ -259,7 +316,23 @@ namespace MoneyWise.Services
                 {
                     // Create new rule
                     _logger.LogInformation("Budget rule doesn't exist, creating new...");
-                    return await CreateBudgetRuleAsync(budgetRule);
+                    
+                    // Try to create, but if it fails due to unique constraint, try to update instead
+                    var createdRule = await CreateBudgetRuleAsync(budgetRule);
+                    if (createdRule == null)
+                    {
+                        _logger.LogWarning("Failed to create budget rule, trying to find existing rule and update...");
+                        // Try to get the existing rule again (in case it was created by another process)
+                        var retryRules = await GetBudgetRulesByUserAsync(budgetRule.UserID);
+                        var retryRule = retryRules.FirstOrDefault();
+                        if (retryRule != null)
+                        {
+                            _logger.LogInformation("Found existing rule on retry, updating...");
+                            budgetRule.BudgetRulesID = retryRule.BudgetRulesID;
+                            return await UpdateBudgetRuleAsync(budgetRule);
+                        }
+                    }
+                    return createdRule;
                 }
             }
             catch (Exception ex)
@@ -269,7 +342,7 @@ namespace MoneyWise.Services
             }
         }
 
-        public async Task<Dictionary<string, object>> GetBudgetSummaryAsync(int userId)
+        public async Task<Dictionary<string, object>> GetBudgetSummaryAsync(long userId)
         {
             try
             {
@@ -322,6 +395,36 @@ namespace MoneyWise.Services
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Exception in ValidateBudgetPercentagesAsync");
+                return false;
+            }
+        }
+
+        public async Task<bool> TestDatabaseConnectionAsync()
+        {
+            try
+            {
+                _logger.LogInformation("Testing database connection for BudgetRules table...");
+                
+                // Try to read from the table
+                var response = await _httpClient.GetAsync("/rest/v1/BudgetRules?select=count");
+                
+                _logger.LogInformation("Test response status: {StatusCode}", response.StatusCode);
+                
+                if (!response.IsSuccessStatusCode)
+                {
+                    var errorContent = await response.Content.ReadAsStringAsync();
+                    _logger.LogError("Database connection test failed: {Error}", errorContent);
+                    return false;
+                }
+                
+                var json = await response.Content.ReadAsStringAsync();
+                _logger.LogInformation("Test response JSON: {Json}", json);
+                
+                return true;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Exception in TestDatabaseConnectionAsync");
                 return false;
             }
         }
