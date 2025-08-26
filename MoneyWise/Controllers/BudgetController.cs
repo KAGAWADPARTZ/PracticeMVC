@@ -38,7 +38,7 @@ namespace MoneyWise.Controllers
 
                 // Get user ID first
                 var userId = await GetUserIdFromEmailAsync(userEmail);
-                if (userId == 0)
+                if (userId == 0L)
                 {
                     TempData["ErrorMessage"] = "User not found.";
                     return View(new List<BudgetRulesModel>());
@@ -159,7 +159,7 @@ namespace MoneyWise.Controllers
         }
 
         [HttpPut]
-        public async Task<IActionResult> UpdateBudgetRule(int userId, [FromBody] BudgetRulesModel budgetRule)
+        public async Task<IActionResult> UpdateBudgetRule(long userId, [FromBody] BudgetRulesModel budgetRule)
         {
             try
             {
@@ -218,7 +218,7 @@ namespace MoneyWise.Controllers
         }
 
         [HttpDelete]
-        public async Task<IActionResult> DeleteBudgetRule(int userId)
+        public async Task<IActionResult> DeleteBudgetRule(long userId)
         {
             try
             {
@@ -260,7 +260,7 @@ namespace MoneyWise.Controllers
                 }
 
                 var userId = await GetUserIdFromEmailAsync(userEmail);
-                if (userId == 0)
+                if (userId == 0L)
                 {
                     return JsonError("User not found");
                 }
@@ -338,7 +338,7 @@ namespace MoneyWise.Controllers
             }
         }
 
-        private async Task<int> GetUserIdFromEmailAsync(string email)
+        private async Task<long> GetUserIdFromEmailAsync(string email)
         {
             try
             {
@@ -349,6 +349,34 @@ namespace MoneyWise.Controllers
             {
                 _logger.LogError(ex, "Error getting user ID for email: {Email}", email);
                 return 0;
+            }
+        }
+
+        [HttpGet]
+        public async Task<IActionResult> TestDatabaseConnection()
+        {
+            try
+            {
+                var sessionResponse = await ValidateSessionAndReturnResponseAsync();
+                if (sessionResponse != null) return sessionResponse;
+
+                var authResult = ValidateAuthentication();
+                if (authResult != null) return authResult;
+
+                var connectionTest = await _budgetRulesService.TestDatabaseConnectionAsync();
+                
+                if (connectionTest)
+                {
+                    return JsonSuccess("Database connection test successful");
+                }
+                else
+                {
+                    return JsonError("Database connection test failed");
+                }
+            }
+            catch (Exception ex)
+            {
+                return HandleException(ex, "testing database connection");
             }
         }
     }

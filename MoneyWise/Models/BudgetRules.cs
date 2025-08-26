@@ -4,8 +4,8 @@ namespace MoneyWise.Models
 {
     public class BudgetRules
     {
-        public int BudgetRulesID { get; set; }
-        public int UserID { get; set; }
+        public long BudgetRulesID { get; set; }
+        public long UserID { get; set; }
         
         [Required]
         [Range(0, 100, ErrorMessage = "Savings percentage must be between 0 and 100")]
@@ -19,7 +19,6 @@ namespace MoneyWise.Models
         [Range(0, 100, ErrorMessage = "Wants percentage must be between 0 and 100")]
         public int Wants { get; set; }
         
-        public DateTime? created_at { get; set; }
         public DateTime? updated_at { get; set; }
     }
 }
