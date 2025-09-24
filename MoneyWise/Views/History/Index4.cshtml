@@ -1,0 +1,259 @@
+@model List<MoneyWise.Models.HistoryModel>
+@{
+    ViewData["Title"] = "Transaction History";
+}
+
+@section Styles {
+    <link rel="stylesheet" href="~/css/transaction-history.css" />
+}
+
+<!-- Page Heading -->
+<div class="d-sm-flex align-items-center justify-content-between mb-4">
+    <h1 class="h3 mb-0 text-gray-800">Transaction History</h1>
+    <div>
+        <button type="button" class="btn btn-primary btn-sm mr-2" onclick="refreshHistory()">
+            <i class="fas fa-sync-alt"></i> Refresh
+        </button>
+        <a href="@Url.Action("Index", "Budget")" class="btn btn-success btn-sm mr-2">
+            <i class="fas fa-chart-pie"></i> Budget Management
+        </a>
+        <a href="@Url.Action("Index", "Home")" class="btn btn-secondary btn-sm">
+            <i class="fas fa-arrow-left"></i> Back to Dashboard
+        </a>
+    </div>
+</div>
+
+<!-- Alert Messages -->
+@if (TempData["ErrorMessage"] != null)
+{
+    <div class="alert alert-danger alert-dismissible fade show" role="alert">
+        <i class="fas fa-exclamation-triangle"></i>
+        @TempData["ErrorMessage"]
+        <button type="button" class="close" data-dismiss="alert" aria-label="Close">
+            <span aria-hidden="true">&times;</span>
+        </button>
+    </div>
+}
+
+@if (TempData["SuccessMessage"] != null)
+{
+    <div class="alert alert-success alert-dismissible fade show" role="alert">
+        <i class="fas fa-check-circle"></i>
+        @TempData["SuccessMessage"]
+        <button type="button" class="close" data-dismiss="alert" aria-label="Close">
+            <span aria-hidden="true">&times;</span>
+        </button>
+    </div>
+}
+
+<!-- Transaction History Card -->
+<div class="card shadow mb-4">
+    <div class="card-header py-3 d-flex flex-row align-items-center justify-content-between">
+        <h6 class="m-0 font-weight-bold text-primary">
+            <i class="fas fa-history"></i> Your Transactions
+        </h6>
+        <div class="dropdown no-arrow">
+            <a class="dropdown-toggle" href="#" role="button" id="dropdownMenuLink" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+                <i class="fas fa-ellipsis-v fa-sm fa-fw text-gray-400"></i>
+            </a>
+            <div class="dropdown-menu dropdown-menu-right shadow animated--fade-in" aria-labelledby="dropdownMenuLink">
+                <div class="dropdown-header">Transaction Options:</div>
+                <a class="dropdown-item" href="#" onclick="exportToCSV()">
+                    <i class="fas fa-download fa-sm fa-fw mr-2 text-gray-400"></i>Export to CSV
+                </a>
+                <a class="dropdown-item" href="#" onclick="printHistory()">
+                    <i class="fas fa-print fa-sm fa-fw mr-2 text-gray-400"></i>Print History
+                </a>
+            </div>
+        </div>
+    </div>
+    <div class="card-body">
+        @if (Model != null && Model.Any())
+        {
+            <div class="table-responsive">
+                <table class="table table-bordered" id="transactionTable" width="100%" cellspacing="0">
+                    <thead>
+                        <tr>
+                            <th>Amount</th>
+                            <th>Type</th>
+                            <th>Date</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var transaction in Model.OrderByDescending(t => t.created_at))
+                        {
+                            <tr>
+                                <td class="@(transaction.Type == "deposit" ? "text-success" : "text-danger")">
+                                    <strong>₱@transaction.Amount.ToString("F2")</strong>
+                                    @if (transaction.Type == "deposit")
+                                    {
+                                        <i class="fas fa-plus-circle text-success ml-1"></i>
+                                    }
+                                    else
+                                    {
+                                        <i class="fas fa-minus-circle text-danger ml-1"></i>
+                                    }
+                                </td>
+                                <td>
+                                    @if (transaction.Type == "deposit")
+                                    {
+                                        <span class="badge badge-success">Deposit</span>
+                                    }
+                                    else
+                                    {
+                                        <span class="badge badge-danger">Withdrawal</span>
+                                    }
+                                </td>
+                                <td>
+                                    @if (transaction.created_at.HasValue)
+                                    {
+                                        <span title="@transaction.created_at.Value.ToString("yyyy-MM-dd HH:mm:ss")">
+                                            @transaction.created_at.Value.ToString("MMM dd, yyyy")
+                                        </span>
+                                    }
+                                    else
+                                    {
+                                        <span class="text-muted">N/A</span>
+                                    }
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        }
+        else
+        {
+            <div class="text-center py-5">
+                <i class="fas fa-inbox fa-3x text-gray-300 mb-3"></i>
+                <h5 class="text-gray-500">No transactions found</h5>
+                <p class="text-gray-400">You haven't made any transactions yet.</p>
+                <a href="@Url.Action("Index", "Home")" class="btn btn-primary">
+                    <i class="fas fa-plus"></i> Make Your First Transaction
+                </a>
+            </div>
+        }
+    </div>
+</div>
+
+<!-- Transaction Summary Cards -->
+<div class="row">
+    <div class="col-xl-3 col-md-6 mb-4">
+        <div class="card border-left-primary shadow h-100 py-2">
+            <div class="card-body">
+                <div class="row no-gutters align-items-center">
+                    <div class="col mr-2">
+                        <div class="text-xs font-weight-bold text-primary text-uppercase mb-1">
+                            Total Transactions
+                        </div>
+                        <div class="h5 mb-0 font-weight-bold text-gray-800" id="totalTransactions">
+                            @(Model?.Count ?? 0)
+                        </div>
+                    </div>
+                    <div class="col-auto">  
+                        <i class="fas fa-calendar fa-2x text-gray-300"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-xl-3 col-md-6 mb-4">
+        <div class="card border-left-success shadow h-100 py-2">
+            <div class="card-body">
+                <div class="row no-gutters align-items-center">
+                    <div class="col mr-2">
+                        <div class="text-xs font-weight-bold text-success text-uppercase mb-1">
+                            Total Deposits
+                        </div>
+                        <div class="h5 mb-0 font-weight-bold text-gray-800" id="totalDeposits">
+                            ₱@(Model?.Where(t => t.Type == "deposit").Sum(t => t.Amount).ToString("F2") ?? "0.00")
+                        </div>
+                    </div>
+                    <div class="col-auto">
+                        <i class="fas fa-plus-circle fa-2x text-gray-300"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-xl-3 col-md-6 mb-4">
+        <div class="card border-left-danger shadow h-100 py-2">
+            <div class="card-body">
+                <div class="row no-gutters align-items-center">
+                    <div class="col mr-2">
+                        <div class="text-xs font-weight-bold text-danger text-uppercase mb-1">
+                            Total Withdrawals
+                        </div>
+                        <div class="h5 mb-0 font-weight-bold text-gray-800" id="totalWithdrawals">
+                            ₱@(Model?.Where(t => t.Type == "withdrawal").Sum(t => t.Amount).ToString("F2") ?? "0.00")
+                        </div>
+                    </div>
+                    <div class="col-auto">
+                        <i class="fas fa-minus-circle fa-2x text-gray-300"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-xl-3 col-md-6 mb-4">
+        <div class="card border-left-info shadow h-100 py-2">
+            <div class="card-body">
+                <div class="row no-gutters align-items-center">
+                    <div class="col mr-2">
+                        <div class="text-xs font-weight-bold text-info text-uppercase mb-1">
+                            Net Balance
+                        </div>
+                        <div class="h5 mb-0 font-weight-bold text-gray-800" id="netBalance">
+                            ₱@((Model?.Where(t => t.Type == "deposit").Sum(t => t.Amount) ?? 0) - (Model?.Where(t => t.Type == "withdrawal").Sum(t => t.Amount) ?? 0)).ToString("F2")
+                        </div>
+                    </div>
+                    <div class="col-auto">
+                        <i class="fas fa-balance-scale fa-2x text-gray-300"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Transaction Details Modal -->
+<div class="modal fade" id="transactionModal" tabindex="-1" role="dialog" aria-labelledby="transactionModalLabel" aria-hidden="true">
+    <div class="modal-dialog" role="document">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="transactionModalLabel">Transaction Details</h5>
+                <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                    <span aria-hidden="true">&times;</span>
+                </button>
+            </div>
+            <div class="modal-body" id="transactionModalBody">
+                <!-- Transaction details will be loaded here -->
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script src="~/js/TransactionHistory.js"></script>
+}
+@section Scripts {
+    <script src="~/js/TransactionHistory.js"></script>
+}
+<!--
+Nothing to see here
+-->
+<!--
+Maybe
+-->
+<!--
+Nothing to see here
+-->
+<!--
+Maybe
+-->
